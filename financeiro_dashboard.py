@@ -42,16 +42,27 @@ def load_data():
 # Carregar os dados
 df_pagar, df_receber = load_data()
 
+# 🔹 Padronizando a coluna Categoria
+df_pagar["Categoria"] = df_pagar["Categoria"].replace({
+    "fixo": "Fixo", 
+    "variável": "Variável"
+})
+
+# 🔹 Corrigindo valores de gastos fixos e variáveis
+fixo = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
+variavel = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
+total_gastos = df_pagar["Valor"].sum()
+media_gastos = df_pagar["Valor"].mean()
+
 # ---- Layout Principal ----
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
 # 🔹 Indicadores principais no topo
-fixo = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
-variavel = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
-
-col1, col2 = st.columns(2)
-col1.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
-col2.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
+col2.metric(label="📊 Média de Gastos", value=f"R$ {media_gastos:,.2f}")
+col3.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
+col4.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
 
 # ---- Filtros Avançados ----
 with st.expander("🔍 Filtros Avançados", expanded=True):
@@ -68,12 +79,6 @@ with st.expander("🔍 Filtros Avançados", expanded=True):
     # Criar opções para seleção múltipla e adicionar "Todos"
     def adicionar_todos(lista):
         return ["Todos"] + list(lista)
-
-    # 🔹 Padronizando a coluna Categoria
-    df_pagar["Categoria"] = df_pagar["Categoria"].replace({
-        "fixo": "Fixo", 
-        "variável": "Variável"
-    })
 
     # Filtros Avançados
     categoria_opcoes = adicionar_todos(df_pagar["Categoria"].dropna().unique())
@@ -127,9 +132,6 @@ col_graf2.plotly_chart(fig_pizza, use_container_width=True)
 
 # ---- Resumo Financeiro ----
 st.sidebar.header("📊 Resumo Financeiro")
-
-total_gastos = df_filtrado["Valor"].sum()
-media_gastos = df_filtrado["Valor"].mean()
 
 st.sidebar.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 st.sidebar.metric(label="📊 Média de Gastos", value=f"R$ {media_gastos:,.2f}")
