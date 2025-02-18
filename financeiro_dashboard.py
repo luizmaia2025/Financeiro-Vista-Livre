@@ -41,19 +41,38 @@ data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Dat
 data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
 data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 
-# Aplicar Filtros
+# Criar opções para seleção múltipla e adicionar "Todos"
+def adicionar_todos(lista):
+    return ["Todos"] + list(lista)
+
+# Filtros adicionais
+categoria_opcoes = adicionar_todos(df_pagar["Categoria"].dropna().unique())
+centro_custo_opcoes = adicionar_todos(df_pagar["Centro de custo"].dropna().unique())
+
+# Aplicar filtros adicionais
+categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categoria_opcoes, default="Todos")
+centro_custo_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
+
 df_filtrado = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
     (df_pagar[data_coluna] <= pd.to_datetime(data_fim))
 ]
 
-# 🔹 Calcular valores dentro do período filtrado
+if "Todos" not in categoria_selecionada:
+    df_filtrado = df_filtrado[df_filtrado["Categoria"].isin(categoria_selecionada)]
+if "Todos" not in centro_custo_selecionado:
+    df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
+
+# ---- Calcular valores dentro do período filtrado ----
 fixo = df_filtrado[df_filtrado["Categoria"].str.strip() == "Fixo"]["Valor"].sum()
-variavel = df_filtrado[df_filtrado["Categoria"].str.strip() == "Variável"]["Valor"].sum()
+variavel = df_filtrado[(df_filtrado["Categoria"].str.strip() == "Variável") & (df_filtrado["Centro de custo"] != "Comissão de Vendas")]["Valor"].sum()
 total_gastos = fixo + variavel
-cartao_credito = df_filtrado[df_filtrado["Forma de Pagamento"].str.contains("Cartão", na=False)]["Valor"].sum()
-cartao_fixo = df_filtrado[(df_filtrado["Forma de Pagamento"].str.contains("Cartão", na=False)) & (df_filtrado["Categoria"].str.strip() == "Fixo")]["Valor"].sum()
-cartao_variavel = df_filtrado[(df_filtrado["Forma de Pagamento"].str.contains("Cartão", na=False)) & (df_filtrado["Categoria"].str.strip() == "Variável")]["Valor"].sum()
+
+# 🔹 Cartão de Crédito Correto
+df_cartao = df_filtrado[df_filtrado["Tipo"].str.contains("Cartão de Crédito", na=False)]
+cartao_credito = df_cartao["Valor"].sum()
+cartao_fixo = df_cartao[df_cartao["Categoria"].str.strip() == "Fixo"]["Valor"].sum()
+cartao_variavel = df_cartao[df_cartao["Categoria"].str.strip() == "Variável"]["Valor"].sum()
 
 # ---- Layout Melhorado ----
 st.markdown("<h1 style='text-align: center;'>📊 Dashboard Financeiro - Vista Livre 2025</h1>", unsafe_allow_html=True)
@@ -68,21 +87,13 @@ col3.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 st.markdown("---")
 col_cartao1, col_cartao2 = st.columns(2)
 col_cartao1.metric(label="💳 Gastos no Cartão de Crédito", value=f"R$ {cartao_credito:,.2f}")
-col_cartao2.markdown(f"**📌 Detalhamento:**<br>🏦 Fixos: R$ {cartao_fixo:,.2f} | 📉 Variáveis: R$ {cartao_variavel:,.2f}", unsafe_allow_html=True)
+col_cartao2.markdown(f"📌 **Detalhamento:**<br>🏦 Fixos: R$ {cartao_fixo:,.2f} | 📉 Variáveis: R$ {cartao_variavel:,.2f}", unsafe_allow_html=True)
 
 st.markdown("---")
 
 # ---- Filtros Avançados Melhorados ----
 with st.expander("🔍 Filtros Avançados", expanded=True):
     col_filtros1, col_filtros2, col_filtros3 = st.columns(3)
-
-    # Criar opções para seleção múltipla e adicionar "Todos"
-    def adicionar_todos(lista):
-        return ["Todos"] + list(lista)
-
-    # Filtros
-    categoria_opcoes = adicionar_todos(df_pagar["Categoria"].dropna().unique())
-    centro_custo_opcoes = adicionar_todos(df_pagar["Centro de custo"].dropna().unique())
 
     with col_filtros1:
         st.subheader("📅 Período")
@@ -91,17 +102,11 @@ with st.expander("🔍 Filtros Avançados", expanded=True):
 
     with col_filtros2:
         st.subheader("📂 Categorias")
-        categoria_selecionada = st.multiselect("Filtrar por Categoria:", categoria_opcoes, default="Todos")
+        st.multiselect("Filtrar por Categoria:", categoria_opcoes, default="Todos")
 
     with col_filtros3:
         st.subheader("🏢 Centro de Custo")
-        centro_custo_selecionado = st.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
-
-# Aplicar filtros adicionais
-if "Todos" not in categoria_selecionada:
-    df_filtrado = df_filtrado[df_filtrado["Categoria"].isin(categoria_selecionada)]
-if "Todos" not in centro_custo_selecionado:
-    df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
+        st.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
 
 # ---- Exibir Tabela Filtrada ----
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
@@ -128,4 +133,3 @@ fig_pizza = px.pie(df_filtrado,
                    title="Distribuição de Gastos Fixos vs Variáveis",
                    hole=0.4)
 col_graf2.plotly_chart(fig_pizza, use_container_width=True)
-
