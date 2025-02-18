@@ -21,6 +21,9 @@ def load_data():
     df_pagar.columns = df_pagar.columns.str.strip()
     df_receber.columns = df_receber.columns.str.strip()
 
+    # 🔹 Padronizando a coluna "Categoria" para evitar erro de identificação
+    df_pagar["Categoria"] = df_pagar["Categoria"].astype(str).str.strip().str.lower()
+
     # Converter colunas de data corretamente
     df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], dayfirst=True, errors='coerce')
     df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], dayfirst=True, errors='coerce')
@@ -55,6 +58,12 @@ data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 # Criar opções para seleção múltipla e adicionar "Todos"
 def adicionar_todos(lista):
     return ["Todos"] + list(lista)
+
+# 🔹 Filtrando corretamente os valores fixos e variáveis
+df_pagar["Categoria"] = df_pagar["Categoria"].replace({
+    "fixo": "Fixo", 
+    "variável": "Variável"
+})
 
 # Filtros Avançados
 categoria_opcoes = adicionar_todos(df_pagar["Categoria"].dropna().unique())
@@ -104,24 +113,3 @@ st.sidebar.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 st.sidebar.metric(label="📊 Média de Gastos", value=f"R$ {media_gastos:,.2f}")
 st.sidebar.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
 st.sidebar.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
-
-# ---- Criar Gráficos ----
-st.subheader("📈 Análises Financeiras")
-
-# Gráfico de Gastos Fixos x Variáveis
-fig_fixo_variavel = px.pie(
-    names=["Fixos", "Variáveis"], 
-    values=[fixo, variavel], 
-    title="Distribuição: Fixos x Variáveis"
-)
-st.plotly_chart(fig_fixo_variavel, use_container_width=True)
-
-# Gráfico de Gastos por Centro de Custo
-fig_centro_custo = px.bar(
-    df_filtrado, 
-    x="Centro de custo", 
-    y="Valor", 
-    color="Centro de custo", 
-    title="Gastos por Centro de Custo"
-)
-st.plotly_chart(fig_centro_custo, use_container_width=True)
