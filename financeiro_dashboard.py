@@ -2,107 +2,119 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---- Configuração da Página ----
+# ---- Configuração do Tema ----
 st.set_page_config(page_title="Dashboard Financeiro - Vista Livre", layout="wide")
 
-# ---- URL da Planilha Google Sheets ----
-SHEET_ID = "1hxeG2XDXR3yWrKNCB9wdgUYx0Xz2lJimD3ii1tPboc"
-SHEET_NAME = "contas_a_pagar"
-SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
+# URL pública da planilha no Google Sheets
+SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
+SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
 
-# ---- Função para Carregar Dados ----
+# Cache para evitar recarregamento desnecessário
 @st.cache_data
 def load_data():
-    try:
-        df_pagar = pd.read_csv(SHEET_URL_PAGAR)
+    df_pagar = pd.read_csv(SHEET_URL_PAGAR)
 
-        # Exibir colunas disponíveis para depuração
-        st.write("✅ Colunas carregadas:", df_pagar.columns.tolist())
+    # Padronizar os nomes das colunas para evitar problemas de formatação
+    df_pagar.columns = df_pagar.columns.str.strip()
 
-        return df_pagar
-    except Exception as e:
-        st.error(f"❌ Erro ao carregar os dados: {e}")
-        return pd.DataFrame()
+    # Converter colunas de data corretamente
+    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], dayfirst=True, errors='coerce')
+    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], dayfirst=True, errors='coerce')
 
-df = load_data()
+    # Corrigir formatação da coluna "Valor"
+    df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
+    df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors='coerce')
 
-# ---- Verificação de Colunas ----
-colunas_necessarias = ["Data de Vencimento", "Centro de Custo", "Subtipo", "Categoria", "Valor"]
-for col in colunas_necessarias:
-    if col not in df.columns:
-        st.error(f"🚨 A coluna '{col}' não foi encontrada na planilha! Verifique o nome da coluna na planilha.")
-        st.stop()  # Interrompe a execução se a coluna estiver ausente
+    return df_pagar
 
-# ---- Ajustando os tipos de dados ----
-df["Data de Vencimento"] = pd.to_datetime(df["Data de Vencimento"], dayfirst=True)
-df["Valor"] = df["Valor"].astype(float)
+# Carregar os dados
+df_pagar = load_data()
 
-# ---- Filtros ----
-st.sidebar.header("📌 Filtros")
-
-# Filtro de intervalo de datas
-data_inicial = st.sidebar.date_input("Data Inicial", df["Data de Vencimento"].min())
-data_final = st.sidebar.date_input("Data Final", df["Data de Vencimento"].max())
-
-# Filtro por centro de custo
-centros_custo_unicos = df["Centro de Custo"].dropna().unique()
-filtro_centro_custo = st.sidebar.multiselect("Filtrar por Centro de Custo:", centros_custo_unicos, default=centros_custo_unicos)
-
-# Filtro por subtipo
-subtipos_unicos = df["Subtipo"].dropna().unique()
-filtro_subtipo = st.sidebar.multiselect("Filtrar por Subtipo:", subtipos_unicos, default=subtipos_unicos)
-
-# ---- Aplicando os Filtros ----
-df_filtrado = df[
-    (df["Data de Vencimento"] >= pd.to_datetime(data_inicial)) &
-    (df["Data de Vencimento"] <= pd.to_datetime(data_final)) &
-    (df["Centro de Custo"].isin(filtro_centro_custo)) &
-    (df["Subtipo"].isin(filtro_subtipo))
-]
-
-# ---- Resumo Financeiro da Empresa ----
-df_empresa = df_filtrado.copy()
-custo_fixo_empresa = df_empresa[df_empresa["Categoria"] == "Fixo"]["Valor"].sum()
-custo_variavel_empresa = df_empresa[df_empresa["Categoria"] == "Variável"]["Valor"].sum()
-total_gastos_empresa = custo_fixo_empresa + custo_variavel_empresa
-
-# ---- Cartão de Crédito ----
-df_cartao = df[
-    (df["Data de Vencimento"] >= pd.to_datetime(data_inicial)) &
-    (df["Data de Vencimento"] <= pd.to_datetime(data_final)) &
-    (df["Subtipo"] == "Cartão de crédito")
-]
-
-custo_fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
-custo_variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
-total_cartao_credito = custo_fixo_cartao + custo_variavel_cartao
-
-# ---- Exibição dos Dados ----
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
-# Resumo Financeiro
-st.subheader("📌 Resumo Financeiro (Empresa)")
+# Sidebar - Filtros Interativos
+st.sidebar.header("🔍 Filtros")
+
+# Escolher entre "Data de Lançamento" ou "Data de Vencimento"
+data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
+
+# Seleção do período
+data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
+data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
+data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
+
+# Filtro por Categoria
+categoria_opcoes = df_pagar["Categoria"].dropna().unique()
+categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categoria_opcoes, default=categoria_opcoes)
+
+# Filtro por Subtipo
+subtipo_opcoes = df_pagar["Subtipo"].dropna().unique()
+subtipo_selecionado = st.sidebar.multiselect("Filtrar por Subtipo:", subtipo_opcoes, default=subtipo_opcoes)
+
+# Filtro por Centro de Custo
+centro_opcoes = df_pagar["Centro de custo"].dropna().unique()
+centro_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_opcoes, default=centro_opcoes)
+
+# Aplicar Filtros
+df_filtrado = df_pagar[
+    (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
+    (df_pagar[data_coluna] <= pd.to_datetime(data_fim)) &
+    (df_pagar["Categoria"].isin(categoria_selecionada)) &
+    (df_pagar["Subtipo"].isin(subtipo_selecionado)) &
+    (df_pagar["Centro de custo"].isin(centro_selecionado))
+]
+
+# ---- Cálculo dos Valores ----
+total_gastos = df_filtrado["Valor"].sum()
+gastos_fixos = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
+gastos_variaveis = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
+
+# **Cartão de Crédito - Considerando Apenas o Período Selecionado**
+df_cartao = df_filtrado[df_filtrado["Subtipo"] == "Cartão de crédito"]
+total_cartao = df_cartao["Valor"].sum()
+fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
+variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
+
+# ---- Layout Melhorado ----
 col1, col2, col3 = st.columns(3)
-col1.metric("💰 Gastos Fixos (Empresa)", f"R$ {custo_fixo_empresa:,.2f}")
-col2.metric("💸 Gastos Variáveis (Empresa)", f"R$ {custo_variavel_empresa:,.2f}")
-col3.metric("📊 Total de Gastos (Empresa)", f"R$ {total_gastos_empresa:,.2f}")
+with col1:
+    st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
+with col2:
+    st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
+with col3:
+    st.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 
-# Cartão de Crédito
+st.markdown("---")
+
+# Seção do Cartão de Crédito
 st.subheader("💳 Gastos no Cartão de Crédito")
-st.metric("📌 Total no Cartão de Crédito", f"R$ {total_cartao_credito:,.2f}")
-st.text(f"📌 Fixos: R$ {custo_fixo_cartao:,.2f}  |  📌 Variáveis: R$ {custo_variavel_cartao:,.2f}")
+st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
+st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
 
-# ---- Gráficos ----
+st.markdown("---")
+
+# ---- Análises Financeiras ----
 st.subheader("📈 Análises Financeiras")
 
 # Gráfico de Gastos por Centro de Custo
-fig_centro_custo = px.bar(df_empresa, x="Centro de Custo", y="Valor", color="Categoria", title="Gastos por Centro de Custo")
+fig_centro_custo = px.bar(df_filtrado, x="Centro de custo", y="Valor", color="Centro de custo",
+                          title="Gastos por Centro de Custo", text_auto=True, height=400)
 st.plotly_chart(fig_centro_custo, use_container_width=True)
 
-# Gráfico de Distribuição Fixo vs Variável
-fig_fixo_variavel = px.pie(df_empresa, names="Categoria", values="Valor", title="Distribuição de Gastos (Fixo vs Variável)")
+# Tabela ao lado do gráfico
+st.subheader("📋 Resumo por Centro de Custo")
+df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
+st.dataframe(df_resumo_centro, hide_index=True, use_container_width=True)
+
+st.markdown("---")
+
+# Gráfico de Distribuição Fixo x Variável
+fig_fixo_variavel = px.pie(df_filtrado, names="Categoria", values="Valor", title="Distribuição dos Gastos (Fixo vs Variável)")
 st.plotly_chart(fig_fixo_variavel, use_container_width=True)
 
-# ---- Tabela de Detalhes ----
+st.markdown("---")
+
+# Tabela Completa dos Dados Filtrados
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
 st.dataframe(df_filtrado)
+
