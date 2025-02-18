@@ -51,18 +51,19 @@ centro_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", cent
 df_empresa = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
     (df_pagar[data_coluna] <= pd.to_datetime(data_fim)) &
-    (df_pagar["Centro de custo"].isin(centro_selecionado))
+    (df_pagar["Centro de custo"].isin(centro_selecionado)) &
+    (df_pagar["Subtipo"] != "Cartão de crédito")  # 🔹 Removendo cartão de crédito da análise geral
 ]
 
 # 📌 **Filtragem específica para o Cartão de Crédito (sem centro de custo)**
 df_cartao = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
     (df_pagar[data_coluna] <= pd.to_datetime(data_fim)) &
-    (df_pagar["Subtipo"] == "Cartão de crédito")
+    (df_pagar["Subtipo"] == "Cartão de crédito")  # 🔹 Considerando apenas o cartão de crédito
 ]
 
 # ---- Cálculo dos Valores ----
-# 🏦 **Valores Gerais da Empresa**
+# 🏦 **Valores Gerais da Empresa (Sem Cartão de Crédito)**
 total_gastos_empresa = df_empresa["Valor"].sum()
 gastos_fixos_empresa = df_empresa[df_empresa["Categoria"] == "Fixo"]["Valor"].sum()
 gastos_variaveis_empresa = df_empresa[df_empresa["Categoria"] == "Variável"]["Valor"].sum()
@@ -73,7 +74,7 @@ fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
 
 # ---- Layout Melhorado ----
-st.markdown("### 📊 Resumo Financeiro")
+st.markdown("### 📊 Resumo Financeiro (Empresa)")
 
 col1, col2, col3 = st.columns(3)
 with col1:
