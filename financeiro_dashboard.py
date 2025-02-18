@@ -1,74 +1,113 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
 import plotly.express as px
 
 # URL pública da planilha (versão CSV)
 SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
 SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
+SHEET_URL_RECEBER = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20receber"
 
+# Função para carregar os dados
 @st.cache_data
 def load_data():
     df_pagar = pd.read_csv(SHEET_URL_PAGAR)
-    return df_pagar
+    df_receber = pd.read_csv(SHEET_URL_RECEBER)
+
+    # Padronizar nomes das colunas
+    df_pagar.columns = df_pagar.columns.str.strip()
+    df_receber.columns = df_receber.columns.str.strip()
+
+    # Converter colunas de data
+    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], format="%d/%m/%Y", errors="coerce")
+    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], format="%d/%m/%Y", errors="coerce")
+    
+    df_receber["Data Fechamento"] = pd.to_datetime(df_receber["Data Fechamento"], format="%d/%m/%Y", errors="coerce")
+    df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], format="%d/%m/%Y", errors="coerce")
+
+    # Corrigir a conversão da coluna "Valor"
+    for df in [df_pagar, df_receber]:
+        df["Valor"] = (
+            df["Valor"]
+            .astype(str)
+            .str.replace(r"[^\d,.-]", "", regex=True)  # Remove caracteres não numéricos
+            .str.replace(",", ".")  # Troca vírgula por ponto para decimal
+            .astype(float)  # Converte para float
+        )
+
+    return df_pagar, df_receber
 
 # Carregar os dados
-df_pagar = load_data()
+df_pagar, df_receber = load_data()
 
-# Renomeando colunas para garantir compatibilidade
-colunas = [
-    "Data lançamento", "Data de Vencimento", "Fornecedor", "Tipo", "Subtipo", "Centro de custo", "Produto",
-    "Categoria", "Valor", "Objetivo", "Status (Pago/Em Aberto)", "Data de Pagamento", "Forma de Pagamento",
-    "Observações", "Nota fiscal"
-]
-df_pagar.columns = colunas
+# Interface no Streamlit
+st.title('📊 Dashboard Financeiro - Vista Livre 2025')
 
-# Convertendo colunas para os tipos corretos
-df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "").str.replace(",", "").astype(float)
-df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], dayfirst=True, errors='coerce')
-df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], dayfirst=True, errors='coerce')
-df_pagar["Data de Pagamento"] = pd.to_datetime(df_pagar["Data de Pagamento"], dayfirst=True, errors='coerce')
-
-# Sidebar de filtros
+# Sidebar para filtros
 st.sidebar.header("🔍 Filtros")
 
-data_filtro = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"], index=1)
-categoria_filtro = st.sidebar.multiselect("Filtrar por Categoria:", df_pagar["Categoria"].unique())
-status_filtro = st.sidebar.multiselect("Filtrar por Status (Pago/Em Aberto):", df_pagar["Status (Pago/Em Aberto)"].dropna().unique())
-forma_pagamento_filtro = st.sidebar.selectbox("Forma de Pagamento:", ["Todas"] + list(df_pagar["Forma de Pagamento"].dropna().unique()))
-data_inicial = st.sidebar.date_input("Data Inicial", df_pagar["Data de Vencimento"].min())
-data_final = st.sidebar.date_input("Data Final", df_pagar["Data de Vencimento"].max())
+# Filtro por tipo de data (Lançamento ou Vencimento)
+tipo_data = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
 
-# Aplicar filtros
-coluna_data = "Data de Vencimento" if data_filtro == "Data de Vencimento" else "Data lançamento"
-df_filtrado = df_pagar[(df_pagar[coluna_data] >= pd.to_datetime(data_inicial)) & (df_pagar[coluna_data] <= pd.to_datetime(data_final))]
-if categoria_filtro:
-    df_filtrado = df_filtrado[df_filtrado["Categoria"].isin(categoria_filtro)]
-if status_filtro:
-    df_filtrado = df_filtrado[df_filtrado["Status (Pago/Em Aberto)"].isin(status_filtro)]
-if forma_pagamento_filtro != "Todas":
-    df_filtrado = df_filtrado[df_filtrado["Forma de Pagamento"] == forma_pagamento_filtro]
+# Filtro por categoria
+categorias = df_pagar["Categoria"].dropna().unique().tolist()
+categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categorias, default=categorias)
 
-# Indicadores financeiros
-total_pagar = df_filtrado["Valor"].sum()
-total_fixo = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
-total_variavel = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
+# Filtro por Status (Pago/Em Aberto)
+status_opcoes = df_pagar["Status (Pago/Em Aberto)"].dropna().unique().tolist()
+status_selecionado = st.sidebar.multiselect("Filtrar por Status (Pago/Em Aberto):", status_opcoes, default=status_opcoes)
 
-# Exibição do Dashboard
-st.title("📊 Dashboard Financeiro - Vista Livre 2025")
+# Filtro por Forma de Pagamento
+formas_pagamento = ["Todas"] + df_pagar["Forma de Pagamento"].dropna().unique().tolist()
+forma_pagamento_selecionada = st.sidebar.selectbox("Forma de Pagamento:", formas_pagamento)
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total de Contas a Pagar", f"R$ {total_pagar:,.2f}")
-col2.metric("Total Fixo", f"R$ {total_fixo:,.2f}")
-col3.metric("Total Variável", f"R$ {total_variavel:,.2f}")
+# Filtro por Data Inicial e Final
+data_coluna = "Data lançamento" if tipo_data == "Data de Lançamento" else "Data de Vencimento"
+data_min = df_pagar[data_coluna].min()
+data_max = df_pagar[data_coluna].max()
 
-# Tabela de dados filtrados
-st.subheader("📄 Dados Filtrados - Contas a Pagar")
+data_inicio = st.sidebar.date_input("Data Inicial", data_min)
+data_fim = st.sidebar.date_input("Data Final", data_max)
+
+# Aplicação dos filtros
+df_filtrado = df_pagar[
+    (df_pagar["Categoria"].isin(categoria_selecionada)) &
+    (df_pagar["Status (Pago/Em Aberto)"].isin(status_selecionado)) &
+    (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
+    (df_pagar[data_coluna] <= pd.to_datetime(data_fim))
+]
+
+# Filtro pela forma de pagamento
+if forma_pagamento_selecionada != "Todas":
+    df_filtrado = df_filtrado[df_filtrado["Forma de Pagamento"] == forma_pagamento_selecionada]
+
+# Exibir dados filtrados
+st.subheader("📑 Dados Filtrados - Contas a Pagar")
 st.dataframe(df_filtrado)
 
-# Gráficos
-st.subheader("📊 Distribuição das Contas a Pagar")
-fig_categoria = px.bar(df_filtrado, x="Categoria", y="Valor", title="Contas a Pagar por Categoria")
-st.plotly_chart(fig_categoria)
+# Métricas Financeiras
+st.subheader("📊 Resumo Financeiro")
+total_pagar = df_filtrado["Valor"].sum()
+st.metric("Total a Pagar", f"R$ {total_pagar:,.2f}")
 
-fig_centro_custo = px.pie(df_filtrado, names="Centro de custo", values="Valor", title="Distribuição por Centro de Custo")
-st.plotly_chart(fig_centro_custo)
+# Gráfico de distribuição por categoria
+st.subheader("📊 Distribuição das Contas a Pagar")
+fig_pagar = px.bar(df_filtrado, x="Categoria", y="Valor", title="Contas a Pagar por Categoria")
+st.plotly_chart(fig_pagar)
+
+# **Contas a Receber**
+st.subheader("📑 Dados Brutos - Contas a Receber")
+st.dataframe(df_receber)
+
+# Total a receber
+total_receber = df_receber["Valor"].sum()
+st.metric("Total a Receber", f"R$ {total_receber:,.2f}")
+
+# Gráfico de distribuição de contas a receber
+fig_receber = px.bar(df_receber, x="Categoria", y="Valor", title="Contas a Receber por Categoria")
+st.plotly_chart(fig_receber)
+
+# **Saldo Final**
+saldo_final = total_receber - total_pagar
+st.metric("💰 Saldo Final", f"R$ {saldo_final:,.2f}", delta=f"R$ {saldo_final:,.2f}")
+
+st.success("✅ Dashboard atualizado com sucesso!")
