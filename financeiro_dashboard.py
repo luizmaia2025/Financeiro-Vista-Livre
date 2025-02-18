@@ -35,6 +35,11 @@ def load_data():
 # ---- Carregar os Dados ----
 df_pagar = load_data()
 
+# ---- CALCULAR OS TOTAIS DA EMPRESA ANTES DE FILTRAGEM ----
+total_gastos_empresa = df_pagar["Valor"].sum()
+gastos_fixos_empresa = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
+gastos_variaveis_empresa = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
+
 # ---- SIDEBAR: Filtros ----
 st.sidebar.title("🎛️ Filtros")
 
@@ -68,11 +73,6 @@ if "Todos" not in subtipo_selecionado:
 
 if "Todos" not in centro_custo_selecionado:
     df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
-
-# ---- CÁLCULO DOS VALORES GERAIS ----
-total_gastos_empresa = df_pagar["Valor"].sum()  # MANTENDO O VALOR GERAL DA EMPRESA
-gastos_fixos_empresa = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
-gastos_variaveis_empresa = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
 
 # ---- CÁLCULO DOS VALORES FILTRADOS ----
 total_gastos_filtro = df_filtrado["Valor"].sum()
