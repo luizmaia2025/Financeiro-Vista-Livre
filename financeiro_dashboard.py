@@ -1,5 +1,9 @@
-import pandas as pd
 import streamlit as st
+
+# O `set_page_config` DEVE vir antes de qualquer outro código
+st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
+
+import pandas as pd
 import plotly.express as px
 
 # URL pública da planilha no Google Sheets
@@ -34,9 +38,6 @@ def load_data():
 
 # Carregar os dados
 df_pagar, df_receber = load_data()
-
-# ---- Layout da Página ----
-st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
