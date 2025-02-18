@@ -9,6 +9,7 @@ SHEET_URL_RECEBER = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?
 
 # Carregar os dados das planilhas
 @st.cache_data
+def @st.cache_data
 def load_data():
     df_pagar = pd.read_csv(SHEET_URL_PAGAR)
     df_receber = pd.read_csv(SHEET_URL_RECEBER)
@@ -26,11 +27,21 @@ def load_data():
     df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], errors="coerce")
     df_receber["Data de Pagamento"] = pd.to_datetime(df_receber["Data de Pagamento"], errors="coerce")
 
-    # Converter valores para float (removendo "R$" e separadores de milhar)
-    df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(",", "").astype(float)
-    df_receber["Valor"] = df_receber["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(",", "").astype(float)
+    # Tratar valores inválidos antes da conversão para float
+    def limpar_valor(valor):
+        """Função para limpar valores, remover 'R$', espaços e caracteres inválidos."""
+        try:
+            if isinstance(valor, str):  
+                valor = valor.replace("R$", "").replace(",", "").strip()
+            return float(valor)  # Converter para float
+        except:
+            return 0.0  # Se não for possível converter, retorna 0
+
+    df_pagar["Valor"] = df_pagar["Valor"].apply(limpar_valor)
+    df_receber["Valor"] = df_receber["Valor"].apply(limpar_valor)
 
     return df_pagar, df_receber
+
 
 # Criar o dashboard
 st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
