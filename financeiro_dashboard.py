@@ -10,21 +10,20 @@ SHEET_URL_RECEBER = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?
 # Carregar os dados das planilhas
 @st.cache_data
 def load_data():
-    df_pagar = pd.read_csv(SHEET_URL_PAGAR)
-    df_receber = pd.read_csv(SHEET_URL_RECEBER)
+    df_pagar = pd.read_csv(SHEET_URL_PAGAR, dtype=str).fillna("")
+    df_receber = pd.read_csv(SHEET_URL_RECEBER, dtype=str).fillna("")
     
-    # Garantir que os nomes das colunas estão corretos
-    df_pagar.columns = df_pagar.columns.str.strip()
-    df_receber.columns = df_receber.columns.str.strip()
+    # Converter datas
+    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], errors="coerce", dayfirst=True)
+    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], errors="coerce", dayfirst=True)
+    df_receber["Data Fechamento"] = pd.to_datetime(df_receber["Data Fechamento"], errors="coerce", dayfirst=True)
+    df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], errors="coerce", dayfirst=True)
     
-    # Converter colunas de data
-    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], format="%d/%m/%Y", errors="coerce")
-    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], format="%d/%m/%Y", errors="coerce")
-    df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], format="%d/%m/%Y", errors="coerce")
-    
-    # Ajustar valores numéricos
-    df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"].astype(str).str.replace("R$", "").str.replace(",", "").str.strip(), errors="coerce")
-    df_receber["Valor"] = pd.to_numeric(df_receber["Valor"].astype(str).str.replace("R$", "").str.replace(",", "").str.strip(), errors="coerce")
+    # Converter valores para numérico
+    df_pagar["Valor"] = df_pagar["Valor"].str.replace("R$", "").str.replace(",", "").str.strip()
+    df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors="coerce")
+    df_receber["Valor"] = df_receber["Valor"].str.replace("R$", "").str.replace(",", "").str.strip()
+    df_receber["Valor"] = pd.to_numeric(df_receber["Valor"], errors="coerce")
     
     return df_pagar, df_receber
 
@@ -33,51 +32,38 @@ st.title('📊 Dashboard Financeiro - Vista Livre 2025')
 
 df_pagar, df_receber = load_data()
 
-# Filtros
-st.sidebar.header("🔍 Filtros")
+# Opções de filtro
+data_filtro = st.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"], index=1)
+categoria_filtro = st.multiselect("Filtrar por Categoria:", df_pagar["Categoria"].unique())
+status_filtro = st.multiselect("Filtrar por Status (Pago/Em Aberto):", df_pagar["Status (Pago/Em Aberto)"].unique())
+forma_pagamento_filtro = st.selectbox("Forma de Pagamento:", ["Todas"] + df_pagar["Forma de Pagamento"].unique().tolist())
 
-# Escolha entre Data de Lançamento e Data de Vencimento
-data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"], index=1)
+data_inicial = st.date_input("Data Inicial", min_value=df_pagar["Data de Vencimento"].min(), max_value=df_pagar["Data de Vencimento"].max())
+data_final = st.date_input("Data Final", min_value=data_inicial, max_value=df_pagar["Data de Vencimento"].max())
 
-# Filtro de Categoria
-categorias = df_pagar["Categoria"].dropna().unique()
-filtro_categoria = st.sidebar.multiselect("Filtrar por Categoria:", categorias, default=categorias)
+# Aplicar filtros
+filtro_data = "Data lançamento" if data_filtro == "Data de Lançamento" else "Data de Vencimento"
+df_pagar_filtrado = df_pagar[(df_pagar[filtro_data] >= pd.to_datetime(data_inicial)) & (df_pagar[filtro_data] <= pd.to_datetime(data_final))]
+if categoria_filtro:
+    df_pagar_filtrado = df_pagar_filtrado[df_pagar_filtrado["Categoria"].isin(categoria_filtro)]
+if status_filtro:
+    df_pagar_filtrado = df_pagar_filtrado[df_pagar_filtrado["Status (Pago/Em Aberto)"].isin(status_filtro)]
+if forma_pagamento_filtro != "Todas":
+    df_pagar_filtrado = df_pagar_filtrado[df_pagar_filtrado["Forma de Pagamento"] == forma_pagamento_filtro]
 
-# Filtro de Status
-status_opcoes = df_pagar["Status (Pago/Em Aberto)"].dropna().unique()
-filtro_status = st.sidebar.multiselect("Filtrar por Status (Pago/Em Aberto):", status_opcoes, default=status_opcoes)
+# Exibir os dados filtrados
+st.subheader("📄 Dados Filtrados - Contas a Pagar")
+st.dataframe(df_pagar_filtrado)
 
-# Filtro de Forma de Pagamento
-formas_pagamento = df_pagar["Forma de Pagamento"].dropna().unique()
-filtro_forma = st.sidebar.selectbox("Forma de Pagamento:", ["Todas"] + list(formas_pagamento))
-
-# Filtrando por Data Inicial e Final
-data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
-data_min, data_max = df_pagar[data_coluna].min(), df_pagar[data_coluna].max()
-data_inicio = st.sidebar.date_input("Data Inicial", data_min)
-data_fim = st.sidebar.date_input("Data Final", data_max)
-
-# Aplicando filtros
-df_filtrado = df_pagar[
-    (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
-    (df_pagar[data_coluna] <= pd.to_datetime(data_fim)) &
-    (df_pagar["Categoria"].isin(filtro_categoria)) &
-    (df_pagar["Status (Pago/Em Aberto)"].isin(filtro_status))
-]
-if filtro_forma != "Todas":
-    df_filtrado = df_filtrado[df_filtrado["Forma de Pagamento"] == filtro_forma]
-
-# Mostrar os dados filtrados
-st.subheader("📋 Dados Filtrados - Contas a Pagar")
-st.dataframe(df_filtrado)
-
-# Cálculo de totais
-if not df_filtrado.empty:
-    total_pagar = df_filtrado["Valor"].sum()
-    st.metric("Total Filtrado a Pagar", f'R$ {total_pagar:,.2f}')
-
-    # Gráfico de Contas a Pagar
-    fig_pagar = px.bar(df_filtrado, x='Categoria', y='Valor', title='Contas a Pagar por Categoria')
+# Gráficos
+if not df_pagar_filtrado.empty:
+    fig_pagar = px.bar(df_pagar_filtrado, x="Categoria", y="Valor", title="Distribuição das Contas a Pagar", color="Categoria")
     st.plotly_chart(fig_pagar)
+    
+    fig_custo_fixo = px.pie(df_pagar_filtrado[df_pagar_filtrado["Categoria"] == "Fixo"], values="Valor", names="Centro de custo", title="Distribuição dos Custos Fixos")
+    st.plotly_chart(fig_custo_fixo)
+    
+    fig_custo_variavel = px.pie(df_pagar_filtrado[df_pagar_filtrado["Categoria"] == "Variável"], values="Valor", names="Centro de custo", title="Distribuição dos Custos Variáveis")
+    st.plotly_chart(fig_custo_variavel)
 else:
     st.warning("Nenhum dado encontrado para os filtros aplicados.")
