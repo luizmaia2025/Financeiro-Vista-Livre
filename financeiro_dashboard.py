@@ -35,7 +35,7 @@ def load_data():
 # ---- Carregar os Dados ----
 df_pagar = load_data()
 
-# ---- 🛑 CÁLCULOS ANTES DE FILTRAGEM (Valores Gerais da Empresa) ----
+# ---- 📌 CALCULAR OS TOTAIS DA EMPRESA (ANTES DOS FILTROS) ----
 total_gastos_empresa = df_pagar["Valor"].sum()
 gastos_fixos_empresa = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
 gastos_variaveis_empresa = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
@@ -59,7 +59,7 @@ categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categor
 subtipo_selecionado = st.sidebar.multiselect("Filtrar por Subtipo:", subtipo_opcoes, default="Todos")
 centro_custo_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
 
-# ---- Aplicar Filtros ----
+# ---- 📌 APLICAR FILTROS (SEM ALTERAR TOTAIS GERAIS) ----
 df_filtrado = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
     (df_pagar[data_coluna] <= pd.to_datetime(data_fim))
@@ -74,30 +74,30 @@ if "Todos" not in subtipo_selecionado:
 if "Todos" not in centro_custo_selecionado:
     df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
 
-# ---- 🔄 CÁLCULO DOS VALORES FILTRADOS ----
+# ---- 📌 CÁLCULO DOS VALORES FILTRADOS (INDEPENDENTE DOS VALORES DA EMPRESA) ----
 total_gastos_filtro = df_filtrado["Valor"].sum()
 gastos_fixos_filtro = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
 gastos_variaveis_filtro = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
 
-# ---- 📌 CORREÇÃO DO CARTÃO DE CRÉDITO ----
-df_cartao = df_pagar[df_pagar["Subtipo"] == "cartão de crédito"]  # <-- Aqui, pegamos os valores antes da filtragem principal
+# ---- 📌 CARTÃO DE CRÉDITO (INDEPENDENTE DOS VALORES GERAIS) ----
+df_cartao = df_pagar[df_pagar["Subtipo"] == "cartão de crédito"]
 cartao_credito_total = df_cartao["Valor"].sum()
 cartao_credito_fixo = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 cartao_credito_variavel = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
 
-# ---- LAYOUT ----
+# ---- 📊 DASHBOARD ----
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("🏦 Gastos Fixos", f"R$ {gastos_fixos_empresa:,.2f}")  # VALOR DA EMPRESA
-col2.metric("📊 Gastos Variáveis", f"R$ {gastos_variaveis_empresa:,.2f}")  # VALOR DA EMPRESA
-col3.metric("💰 Total de Gastos", f"R$ {total_gastos_empresa:,.2f}")  # VALOR DA EMPRESA
+col1.metric("🏦 Gastos Fixos", f"R$ {gastos_fixos_empresa:,.2f}")  
+col2.metric("📊 Gastos Variáveis", f"R$ {gastos_variaveis_empresa:,.2f}")  
+col3.metric("💰 Total de Gastos", f"R$ {total_gastos_empresa:,.2f}")  
 
 st.subheader("💳 Gastos no Cartão de Crédito")
 st.metric("💳 Total no Cartão de Crédito", f"R$ {cartao_credito_total:,.2f}")
 st.markdown(f"🔹 **Fixos:** R$ {cartao_credito_fixo:,.2f} | 🟣 **Variáveis:** R$ {cartao_credito_variavel:,.2f}")
 
-# ---- GRÁFICOS ----
+# ---- 📊 GRÁFICOS ----
 st.subheader("📊 Análises Financeiras")
 
 col_graf1, col_tabela = st.columns([2, 1])
@@ -123,6 +123,6 @@ st.divider()
 fig_subtipo = px.bar(df_filtrado, x="Subtipo", y="Valor", title="Gastos por Subtipo", color="Subtipo", text_auto=".2f")
 st.plotly_chart(fig_subtipo, use_container_width=True)
 
-# ---- TABELA DE DADOS ----
+# ---- 📋 TABELA DE DADOS ----
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
-st.data
+st.dataframe(df_filtrado, use_container_width=True)
