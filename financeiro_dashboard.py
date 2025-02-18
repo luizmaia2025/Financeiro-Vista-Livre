@@ -15,12 +15,23 @@ SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tq
 def load_data():
     try:
         df_pagar = pd.read_csv(SHEET_URL_PAGAR)
+
+        # Exibir colunas disponíveis para depuração
+        st.write("✅ Colunas carregadas:", df_pagar.columns.tolist())
+
         return df_pagar
     except Exception as e:
-        st.error(f"Erro ao carregar os dados: {e}")
+        st.error(f"❌ Erro ao carregar os dados: {e}")
         return pd.DataFrame()
 
 df = load_data()
+
+# ---- Verificação de Colunas ----
+colunas_necessarias = ["Data de Vencimento", "Centro de Custo", "Subtipo", "Categoria", "Valor"]
+for col in colunas_necessarias:
+    if col not in df.columns:
+        st.error(f"🚨 A coluna '{col}' não foi encontrada na planilha! Verifique o nome da coluna na planilha.")
+        st.stop()  # Interrompe a execução se a coluna estiver ausente
 
 # ---- Ajustando os tipos de dados ----
 df["Data de Vencimento"] = pd.to_datetime(df["Data de Vencimento"], dayfirst=True)
@@ -49,14 +60,13 @@ df_filtrado = df[
     (df["Subtipo"].isin(filtro_subtipo))
 ]
 
-# ---- Resumo Financeiro da Empresa (Baseado no Centro de Custo) ----
+# ---- Resumo Financeiro da Empresa ----
 df_empresa = df_filtrado.copy()
-
 custo_fixo_empresa = df_empresa[df_empresa["Categoria"] == "Fixo"]["Valor"].sum()
 custo_variavel_empresa = df_empresa[df_empresa["Categoria"] == "Variável"]["Valor"].sum()
 total_gastos_empresa = custo_fixo_empresa + custo_variavel_empresa
 
-# ---- Cartão de Crédito (Baseado Apenas na Data) ----
+# ---- Cartão de Crédito ----
 df_cartao = df[
     (df["Data de Vencimento"] >= pd.to_datetime(data_inicial)) &
     (df["Data de Vencimento"] <= pd.to_datetime(data_final)) &
@@ -96,4 +106,3 @@ st.plotly_chart(fig_fixo_variavel, use_container_width=True)
 # ---- Tabela de Detalhes ----
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
 st.dataframe(df_filtrado)
-
