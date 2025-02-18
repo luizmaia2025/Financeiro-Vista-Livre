@@ -35,7 +35,7 @@ def load_data():
 # ---- Carregar os Dados ----
 df_pagar = load_data()
 
-# ---- CALCULAR OS TOTAIS DA EMPRESA ANTES DE FILTRAGEM ----
+# ---- 🛑 CÁLCULOS ANTES DE FILTRAGEM (Valores Gerais da Empresa) ----
 total_gastos_empresa = df_pagar["Valor"].sum()
 gastos_fixos_empresa = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
 gastos_variaveis_empresa = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
@@ -74,13 +74,13 @@ if "Todos" not in subtipo_selecionado:
 if "Todos" not in centro_custo_selecionado:
     df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
 
-# ---- CÁLCULO DOS VALORES FILTRADOS ----
+# ---- 🔄 CÁLCULO DOS VALORES FILTRADOS ----
 total_gastos_filtro = df_filtrado["Valor"].sum()
 gastos_fixos_filtro = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
 gastos_variaveis_filtro = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
 
-# ---- CARTÃO DE CRÉDITO ----
-df_cartao = df_filtrado[df_filtrado["Subtipo"] == "cartão de crédito"]
+# ---- 📌 CORREÇÃO DO CARTÃO DE CRÉDITO ----
+df_cartao = df_pagar[df_pagar["Subtipo"] == "cartão de crédito"]  # <-- Aqui, pegamos os valores antes da filtragem principal
 cartao_credito_total = df_cartao["Valor"].sum()
 cartao_credito_fixo = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 cartao_credito_variavel = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
@@ -125,4 +125,4 @@ st.plotly_chart(fig_subtipo, use_container_width=True)
 
 # ---- TABELA DE DADOS ----
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
-st.dataframe(df_filtrado, use_container_width=True)
+st.data
