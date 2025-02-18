@@ -17,13 +17,6 @@ def load_data():
     df_pagar.columns = df_pagar.columns.str.strip()
     df_receber.columns = df_receber.columns.str.strip()
 
-    # Exibir os dados carregados no console para debug
-    print("Dados Carregados - Contas a Pagar:")
-    print(df_pagar.head())
-
-    print("Dados Carregados - Contas a Receber:")
-    print(df_receber.head())
-
     # Converter datas corretamente
     date_columns_pagar = ["Data lançamento", "Data de Vencimento", "Data de Pagamento"]
     date_columns_receber = ["Data Fechamento", "Data de Recebimento", "Data de Pagamento"]
@@ -34,7 +27,7 @@ def load_data():
     for col in date_columns_receber:
         df_receber[col] = pd.to_datetime(df_receber[col], format="%d/%m/%Y", errors="coerce")
 
-    # Limpar a coluna "Valor" e converter para numérico
+    # Limpar e converter a coluna "Valor"
     df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"].astype(str).str.replace("R$", "", regex=True).str.replace(",", "", regex=True).str.strip(), errors="coerce")
     df_receber["Valor"] = pd.to_numeric(df_receber["Valor"].astype(str).str.replace("R$", "", regex=True).str.replace(",", "", regex=True).str.strip(), errors="coerce")
 
@@ -47,28 +40,34 @@ df_pagar, df_receber = load_data()
 
 if not df_pagar.empty and not df_receber.empty:
     # **Exibir dados brutos para depuração**
-    st.subheader("📜 Dados Brutos - Contas a Pagar")
-    st.write(df_pagar.head())
+    with st.expander("📜 Dados Brutos - Contas a Pagar"):
+        st.write(df_pagar.head())
 
-    st.subheader("📜 Dados Brutos - Contas a Receber")
-    st.write(df_receber.head())
+    with st.expander("📜 Dados Brutos - Contas a Receber"):
+        st.write(df_receber.head())
 
     # **Filtros**
     st.sidebar.header("🔍 Filtros")
+
+    # Opção para escolher entre Data de Lançamento ou Data de Vencimento
+    data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
+
+    # Definir qual coluna será usada como base de data
+    data_coluna_pagar = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
 
     categoria_filtro = st.sidebar.multiselect("Filtrar por Categoria:", df_pagar["Categoria"].dropna().unique(), default=df_pagar["Categoria"].dropna().unique())
     status_filtro = st.sidebar.multiselect("Filtrar por Status (Pago/Em Aberto):", df_pagar["Status (Pago/Em Aberto)"].dropna().unique(), default=df_pagar["Status (Pago/Em Aberto)"].dropna().unique())
     forma_pagamento_filtro = st.sidebar.multiselect("Forma de Pagamento:", df_pagar["Forma de Pagamento"].dropna().unique(), default=df_pagar["Forma de Pagamento"].dropna().unique())
 
-    data_inicio = st.sidebar.date_input("Data Inicial", df_pagar["Data lançamento"].min())
-    data_fim = st.sidebar.date_input("Data Final", df_pagar["Data lançamento"].max())
+    data_inicio = st.sidebar.date_input(f"{data_tipo} Inicial", df_pagar[data_coluna_pagar].min())
+    data_fim = st.sidebar.date_input(f"{data_tipo} Final", df_pagar[data_coluna_pagar].max())
 
     # Aplicar filtros
     df_pagar_filtrado = df_pagar[
         (df_pagar["Categoria"].isin(categoria_filtro)) &
         (df_pagar["Status (Pago/Em Aberto)"].isin(status_filtro)) &
         (df_pagar["Forma de Pagamento"].isin(forma_pagamento_filtro)) &
-        (df_pagar["Data lançamento"].between(pd.Timestamp(data_inicio), pd.Timestamp(data_fim)))
+        (df_pagar[data_coluna_pagar].between(pd.Timestamp(data_inicio), pd.Timestamp(data_fim)))
     ]
 
     df_receber_filtrado = df_receber[
@@ -77,9 +76,9 @@ if not df_pagar.empty and not df_receber.empty:
 
     # **Verificar se os filtros eliminaram todos os dados**
     if df_pagar_filtrado.empty:
-        st.warning("⚠ Nenhuma conta a pagar encontrada com os filtros selecionados.")
+        st.warning(f"⚠ Nenhuma conta a pagar encontrada entre {data_inicio} e {data_fim}.")
     if df_receber_filtrado.empty:
-        st.warning("⚠ Nenhuma conta a receber encontrada com os filtros selecionados.")
+        st.warning(f"⚠ Nenhuma conta a receber encontrada entre {data_inicio} e {data_fim}.")
 
     # **Métricas Financeiras**
     total_pagar = df_pagar_filtrado["Valor"].sum()
@@ -93,7 +92,7 @@ if not df_pagar.empty and not df_receber.empty:
     # **Gráficos**
     st.subheader("📊 Distribuição das Contas a Pagar")
     if not df_pagar_filtrado.empty:
-        fig_pagar = px.bar(df_pagar_filtrado, x="Categoria", y="Valor", color="Centro de custo", title="Contas a Pagar por Categoria")
+        fig_pagar = px.bar(df_pagar_filtrado, x="Categoria", y="Valor", color="Centro de custo", title=f"Contas a Pagar por Categoria ({data_tipo})")
         st.plotly_chart(fig_pagar)
     else:
         st.warning("⚠ Não há dados suficientes para gerar o gráfico de Contas a Pagar.")
