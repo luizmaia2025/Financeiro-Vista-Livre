@@ -9,32 +9,27 @@ import plotly.express as px
 # URL pública da planilha no Google Sheets
 SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
 SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
-SHEET_URL_RECEBER = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20receber"
 
 # Cache para evitar recarregamento desnecessário
 @st.cache_data
 def load_data():
     df_pagar = pd.read_csv(SHEET_URL_PAGAR)
-    df_receber = pd.read_csv(SHEET_URL_RECEBER)
 
     # Padronizar os nomes das colunas para evitar problemas de formatação
     df_pagar.columns = df_pagar.columns.str.strip()
-    df_receber.columns = df_receber.columns.str.strip()
 
     # Converter colunas de data corretamente
     df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], dayfirst=True, errors='coerce')
     df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], dayfirst=True, errors='coerce')
-    df_receber["Data Fechamento"] = pd.to_datetime(df_receber["Data Fechamento"], dayfirst=True, errors='coerce')
-    df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], dayfirst=True, errors='coerce')
 
     # Corrigir a conversão da coluna "Valor"
     df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors='coerce')
 
-    return df_pagar, df_receber
+    return df_pagar
 
 # Carregar os dados
-df_pagar, df_receber = load_data()
+df_pagar = load_data()
 
 # ---- Filtros Avançados ----
 st.sidebar.header("🔍 Filtros")
@@ -53,21 +48,28 @@ df_filtrado = df_pagar[
 ]
 
 # 🔹 Calcular valores dentro do período filtrado
-total_gastos = df_filtrado["Valor"].sum()
-media_gastos = df_filtrado["Valor"].mean()
-fixo = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
-variavel = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
+fixo = df_filtrado[df_filtrado["Categoria"].str.strip() == "Fixo"]["Valor"].sum()
+variavel = df_filtrado[df_filtrado["Categoria"].str.strip() == "Variável"]["Valor"].sum()
+total_gastos = fixo + variavel
+cartao_credito = df_filtrado[df_filtrado["Forma de Pagamento"].str.contains("Cartão", na=False)]["Valor"].sum()
+cartao_fixo = df_filtrado[(df_filtrado["Forma de Pagamento"].str.contains("Cartão", na=False)) & (df_filtrado["Categoria"].str.strip() == "Fixo")]["Valor"].sum()
+cartao_variavel = df_filtrado[(df_filtrado["Forma de Pagamento"].str.contains("Cartão", na=False)) & (df_filtrado["Categoria"].str.strip() == "Variável")]["Valor"].sum()
 
 # ---- Layout Melhorado ----
 st.markdown("<h1 style='text-align: center;'>📊 Dashboard Financeiro - Vista Livre 2025</h1>", unsafe_allow_html=True)
 
-# 🔹 Indicadores principais melhor distribuídos
+# 🔹 Indicadores principais organizados conforme a nova estrutura
 st.markdown("---")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
-col2.metric(label="📊 Média de Gastos", value=f"R$ {media_gastos:,.2f}")
-col3.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
-col4.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
+col1, col2, col3 = st.columns(3)
+col1.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
+col2.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
+col3.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
+
+st.markdown("---")
+col_cartao1, col_cartao2 = st.columns(2)
+col_cartao1.metric(label="💳 Gastos no Cartão de Crédito", value=f"R$ {cartao_credito:,.2f}")
+col_cartao2.markdown(f"**📌 Detalhamento:**<br>🏦 Fixos: R$ {cartao_fixo:,.2f} | 📉 Variáveis: R$ {cartao_variavel:,.2f}", unsafe_allow_html=True)
+
 st.markdown("---")
 
 # ---- Filtros Avançados Melhorados ----
@@ -127,10 +129,3 @@ fig_pizza = px.pie(df_filtrado,
                    hole=0.4)
 col_graf2.plotly_chart(fig_pizza, use_container_width=True)
 
-# ---- Resumo Financeiro ----
-st.sidebar.header("📊 Resumo Financeiro")
-
-st.sidebar.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
-st.sidebar.metric(label="📊 Média de Gastos", value=f"R$ {media_gastos:,.2f}")
-st.sidebar.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
-st.sidebar.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
