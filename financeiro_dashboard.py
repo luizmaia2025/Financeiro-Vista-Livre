@@ -27,11 +27,11 @@ def load_data():
     df_receber["Data Fechamento"] = pd.to_datetime(df_receber["Data Fechamento"], dayfirst=True, errors='coerce')
     df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], dayfirst=True, errors='coerce')
 
-    # Converter a coluna "Valor" para numérico (removendo "R$", espaços e vírgulas)
-    df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(",", "", regex=False)
+    # Corrigindo a conversão da coluna "Valor"
+    df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors='coerce')
 
-    df_receber["Valor"] = df_receber["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(",", "", regex=False)
+    df_receber["Valor"] = df_receber["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df_receber["Valor"] = pd.to_numeric(df_receber["Valor"], errors='coerce')
 
     return df_pagar, df_receber
