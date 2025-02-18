@@ -17,6 +17,13 @@ def load_data():
     df_pagar.columns = df_pagar.columns.str.strip()
     df_receber.columns = df_receber.columns.str.strip()
 
+    # Exibir os dados carregados no console para debug
+    print("Dados Carregados - Contas a Pagar:")
+    print(df_pagar.head())
+
+    print("Dados Carregados - Contas a Receber:")
+    print(df_receber.head())
+
     # Converter datas corretamente
     date_columns_pagar = ["Data lançamento", "Data de Vencimento", "Data de Pagamento"]
     date_columns_receber = ["Data Fechamento", "Data de Recebimento", "Data de Pagamento"]
@@ -39,6 +46,13 @@ st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 df_pagar, df_receber = load_data()
 
 if not df_pagar.empty and not df_receber.empty:
+    # **Exibir dados brutos para depuração**
+    st.subheader("📜 Dados Brutos - Contas a Pagar")
+    st.write(df_pagar.head())
+
+    st.subheader("📜 Dados Brutos - Contas a Receber")
+    st.write(df_receber.head())
+
     # **Filtros**
     st.sidebar.header("🔍 Filtros")
 
@@ -61,6 +75,12 @@ if not df_pagar.empty and not df_receber.empty:
         df_receber["Data Fechamento"].between(pd.Timestamp(data_inicio), pd.Timestamp(data_fim))
     ]
 
+    # **Verificar se os filtros eliminaram todos os dados**
+    if df_pagar_filtrado.empty:
+        st.warning("⚠ Nenhuma conta a pagar encontrada com os filtros selecionados.")
+    if df_receber_filtrado.empty:
+        st.warning("⚠ Nenhuma conta a receber encontrada com os filtros selecionados.")
+
     # **Métricas Financeiras**
     total_pagar = df_pagar_filtrado["Valor"].sum()
     total_receber = df_receber_filtrado["Valor"].sum()
@@ -72,22 +92,34 @@ if not df_pagar.empty and not df_receber.empty:
 
     # **Gráficos**
     st.subheader("📊 Distribuição das Contas a Pagar")
-    fig_pagar = px.bar(df_pagar_filtrado, x="Categoria", y="Valor", color="Centro de custo", title="Contas a Pagar por Categoria")
-    st.plotly_chart(fig_pagar)
+    if not df_pagar_filtrado.empty:
+        fig_pagar = px.bar(df_pagar_filtrado, x="Categoria", y="Valor", color="Centro de custo", title="Contas a Pagar por Categoria")
+        st.plotly_chart(fig_pagar)
+    else:
+        st.warning("⚠ Não há dados suficientes para gerar o gráfico de Contas a Pagar.")
 
     st.subheader("📊 Distribuição das Contas a Receber")
-    fig_receber = px.bar(df_receber_filtrado, x="Categoria", y="Valor", color="Cliente", title="Contas a Receber por Categoria")
-    st.plotly_chart(fig_receber)
+    if not df_receber_filtrado.empty:
+        fig_receber = px.bar(df_receber_filtrado, x="Categoria", y="Valor", color="Cliente", title="Contas a Receber por Categoria")
+        st.plotly_chart(fig_receber)
+    else:
+        st.warning("⚠ Não há dados suficientes para gerar o gráfico de Contas a Receber.")
 
     # **Maiores Despesas**
-    despesas_top = df_pagar_filtrado.nlargest(5, "Valor")
-    st.subheader("📉 Maiores Contas a Pagar")
-    st.table(despesas_top[["Fornecedor", "Produto", "Valor"]])
+    if not df_pagar_filtrado.empty:
+        despesas_top = df_pagar_filtrado.nlargest(5, "Valor")
+        st.subheader("📉 Maiores Contas a Pagar")
+        st.table(despesas_top[["Fornecedor", "Produto", "Valor"]])
+    else:
+        st.warning("⚠ Não há despesas para exibir.")
 
     # **Maiores Recebimentos**
-    recebimentos_top = df_receber_filtrado.nlargest(5, "Valor")
-    st.subheader("📈 Maiores Contas a Receber")
-    st.table(recebimentos_top[["Cliente", "Descrição", "Valor"]])
+    if not df_receber_filtrado.empty:
+        recebimentos_top = df_receber_filtrado.nlargest(5, "Valor")
+        st.subheader("📈 Maiores Contas a Receber")
+        st.table(recebimentos_top[["Cliente", "Descrição", "Valor"]])
+    else:
+        st.warning("⚠ Não há recebimentos para exibir.")
 
 else:
     st.warning("⚠ Nenhum dado encontrado. Verifique se a planilha está pública e os nomes das abas estão corretos.")
