@@ -2,51 +2,50 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---- Configuração do Tema ----
+# ---- Configuração do Layout ----
 st.set_page_config(page_title="Dashboard Financeiro - Vista Livre", layout="wide")
 
-# URL pública da planilha no Google Sheets
+# ---- URL da Planilha ----
 SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
 SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
 
-# Cache para evitar recarregamento desnecessário
+# ---- Cache para otimização ----
 @st.cache_data
 def load_data():
     df_pagar = pd.read_csv(SHEET_URL_PAGAR)
 
-    # Padronizar os nomes das colunas para evitar problemas de formatação
+    # Padronizar colunas
     df_pagar.columns = df_pagar.columns.str.strip()
 
-    # Converter colunas de data corretamente
+    # Converter datas
     df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], dayfirst=True, errors='coerce')
     df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], dayfirst=True, errors='coerce')
 
-    # Limpeza da coluna de valores
+    # Formatar valores
     df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors='coerce')
 
-    # Padronização de strings para evitar erros nos filtros
+    # Padronização para evitar erros nos filtros
     df_pagar["Categoria"] = df_pagar["Categoria"].str.strip().str.capitalize()
     df_pagar["Subtipo"] = df_pagar["Subtipo"].str.strip().str.lower()
     df_pagar["Centro de custo"] = df_pagar["Centro de custo"].str.strip()
 
     return df_pagar
 
-# Carregar os dados
+# ---- Carregar os Dados ----
 df_pagar = load_data()
 
 # ---- SIDEBAR: Filtros ----
 st.sidebar.title("🎛️ Filtros")
 
-# Escolher entre "Data de Lançamento" ou "Data de Vencimento"
+# Filtro por Data
 data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
 data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
 
-# Seleção do período
 data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
 data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 
-# Filtros dinâmicos
+# Filtros Dinâmicos
 categoria_opcoes = ["Todos"] + sorted(df_pagar["Categoria"].dropna().unique().tolist())
 subtipo_opcoes = ["Todos"] + sorted(df_pagar["Subtipo"].dropna().unique().tolist())
 centro_custo_opcoes = ["Todos"] + sorted(df_pagar["Centro de custo"].dropna().unique().tolist())
@@ -55,7 +54,7 @@ categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categor
 subtipo_selecionado = st.sidebar.multiselect("Filtrar por Subtipo:", subtipo_opcoes, default="Todos")
 centro_custo_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
 
-# Aplicar Filtros
+# ---- Aplicar Filtros ----
 df_filtrado = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
     (df_pagar[data_coluna] <= pd.to_datetime(data_fim))
@@ -70,10 +69,15 @@ if "Todos" not in subtipo_selecionado:
 if "Todos" not in centro_custo_selecionado:
     df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
 
-# ---- CÁLCULOS ----
-total_gastos = df_filtrado["Valor"].sum()
-gastos_fixos = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
-gastos_variaveis = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
+# ---- CÁLCULO DOS VALORES GERAIS ----
+total_gastos_empresa = df_pagar["Valor"].sum()  # MANTENDO O VALOR GERAL DA EMPRESA
+gastos_fixos_empresa = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
+gastos_variaveis_empresa = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
+
+# ---- CÁLCULO DOS VALORES FILTRADOS ----
+total_gastos_filtro = df_filtrado["Valor"].sum()
+gastos_fixos_filtro = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
+gastos_variaveis_filtro = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
 
 # ---- CARTÃO DE CRÉDITO ----
 df_cartao = df_filtrado[df_filtrado["Subtipo"] == "cartão de crédito"]
@@ -85,9 +89,9 @@ cartao_credito_variavel = df_cartao[df_cartao["Categoria"] == "Variável"]["Valo
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("🏦 Gastos Fixos", f"R$ {gastos_fixos:,.2f}")
-col2.metric("📊 Gastos Variáveis", f"R$ {gastos_variaveis:,.2f}")
-col3.metric("💰 Total de Gastos", f"R$ {total_gastos:,.2f}")
+col1.metric("🏦 Gastos Fixos", f"R$ {gastos_fixos_empresa:,.2f}")  # VALOR DA EMPRESA
+col2.metric("📊 Gastos Variáveis", f"R$ {gastos_variaveis_empresa:,.2f}")  # VALOR DA EMPRESA
+col3.metric("💰 Total de Gastos", f"R$ {total_gastos_empresa:,.2f}")  # VALOR DA EMPRESA
 
 st.subheader("💳 Gastos no Cartão de Crédito")
 st.metric("💳 Total no Cartão de Crédito", f"R$ {cartao_credito_total:,.2f}")
@@ -122,4 +126,3 @@ st.plotly_chart(fig_subtipo, use_container_width=True)
 # ---- TABELA DE DADOS ----
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
 st.dataframe(df_filtrado, use_container_width=True)
-
