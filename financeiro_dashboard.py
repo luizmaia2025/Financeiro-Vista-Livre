@@ -63,9 +63,9 @@ df_cartao = df_pagar[
 
 # ---- Cálculo dos Valores ----
 # 🏦 **Valores Gerais da Empresa**
-total_gastos = df_empresa["Valor"].sum()
-gastos_fixos = df_empresa[df_empresa["Categoria"] == "Fixo"]["Valor"].sum()
-gastos_variaveis = df_empresa[df_empresa["Categoria"] == "Variável"]["Valor"].sum()
+total_gastos_empresa = df_empresa["Valor"].sum()
+gastos_fixos_empresa = df_empresa[df_empresa["Categoria"] == "Fixo"]["Valor"].sum()
+gastos_variaveis_empresa = df_empresa[df_empresa["Categoria"] == "Variável"]["Valor"].sum()
 
 # 💳 **Valores Específicos do Cartão de Crédito**
 total_cartao = df_cartao["Valor"].sum()
@@ -77,11 +77,11 @@ st.markdown("### 📊 Resumo Financeiro")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
+    st.metric(label="🏦 Gastos Fixos (Empresa)", value=f"R$ {gastos_fixos_empresa:,.2f}")
 with col2:
-    st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
+    st.metric(label="📉 Gastos Variáveis (Empresa)", value=f"R$ {gastos_variaveis_empresa:,.2f}")
 with col3:
-    st.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
+    st.metric(label="💰 Total de Gastos (Empresa)", value=f"R$ {total_gastos_empresa:,.2f}")
 
 st.markdown("---")
 
@@ -91,4 +91,3 @@ st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.
 st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
 
 st.markdown("---")
-
