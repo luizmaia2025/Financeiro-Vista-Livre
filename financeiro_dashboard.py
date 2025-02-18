@@ -9,7 +9,8 @@ SHEET_URL_RECEBER = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?
 
 # Carregar os dados das planilhas
 @st.cache_data
-def @st.cache_data
+def load_data():
+
 
 def load_data():
     df_pagar = pd.read_csv(SHEET_URL_PAGAR)
