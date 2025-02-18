@@ -42,42 +42,51 @@ def load_data():
 # Carregar os dados
 df_pagar, df_receber = load_data()
 
+# ---- Layout Principal ----
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
-# Sidebar - Filtros Avançados
-st.sidebar.header("🔍 Filtros")
+# 🔹 Indicadores principais no topo
+fixo = df_pagar[df_pagar["Categoria"] == "Fixo"]["Valor"].sum()
+variavel = df_pagar[df_pagar["Categoria"] == "Variável"]["Valor"].sum()
 
-# Escolher entre "Data de Lançamento" ou "Data de Vencimento"
-data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
+col1, col2 = st.columns(2)
+col1.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
+col2.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
 
-# Seleção do período
-data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
-data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
-data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
+# ---- Filtros Avançados ----
+with st.expander("🔍 Filtros Avançados", expanded=True):
+    col_filtros1, col_filtros2, col_filtros3 = st.columns(3)
 
-# Criar opções para seleção múltipla e adicionar "Todos"
-def adicionar_todos(lista):
-    return ["Todos"] + list(lista)
+    # Filtro de Data
+    with col_filtros1:
+        st.subheader("📅 Filtrar por Período")
+        data_tipo = st.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
+        data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
+        data_inicio = st.date_input("Data Inicial", df_pagar[data_coluna].min())
+        data_fim = st.date_input("Data Final", df_pagar[data_coluna].max())
 
-# 🔹 Filtrando corretamente os valores fixos e variáveis
-df_pagar["Categoria"] = df_pagar["Categoria"].replace({
-    "fixo": "Fixo", 
-    "variável": "Variável"
-})
+    # Criar opções para seleção múltipla e adicionar "Todos"
+    def adicionar_todos(lista):
+        return ["Todos"] + list(lista)
 
-# Filtros Avançados
-categoria_opcoes = adicionar_todos(df_pagar["Categoria"].dropna().unique())
-centro_custo_opcoes = adicionar_todos(df_pagar["Centro de custo"].dropna().unique())
-tipo_opcoes = adicionar_todos(df_pagar["Tipo"].dropna().unique())
-subtipo_opcoes = adicionar_todos(df_pagar["Subtipo"].dropna().unique())
-status_opcoes = adicionar_todos(df_pagar["Status (Pago/Em Aberto)"].dropna().unique())
+    # 🔹 Padronizando a coluna Categoria
+    df_pagar["Categoria"] = df_pagar["Categoria"].replace({
+        "fixo": "Fixo", 
+        "variável": "Variável"
+    })
 
-# Seleção de Filtros
-categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categoria_opcoes, default="Todos")
-centro_custo_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
-tipo_selecionado = st.sidebar.multiselect("Filtrar por Tipo:", tipo_opcoes, default="Todos")
-subtipo_selecionado = st.sidebar.multiselect("Filtrar por Subtipo:", subtipo_opcoes, default="Todos")
-status_selecionado = st.sidebar.multiselect("Filtrar por Status (Pago/Em Aberto):", status_opcoes, default="Todos")
+    # Filtros Avançados
+    categoria_opcoes = adicionar_todos(df_pagar["Categoria"].dropna().unique())
+    centro_custo_opcoes = adicionar_todos(df_pagar["Centro de custo"].dropna().unique())
+
+    # Seleção de Filtros
+    with col_filtros2:
+        st.subheader("📂 Categorias")
+        categoria_selecionada = st.multiselect("Filtrar por Categoria:", categoria_opcoes, default="Todos")
+
+    with col_filtros3:
+        st.subheader("🏢 Centro de Custo")
+        centro_custo_selecionado = st.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
 
 # Aplicar Filtros
 df_filtrado = df_pagar[
@@ -89,25 +98,38 @@ if "Todos" not in categoria_selecionada:
     df_filtrado = df_filtrado[df_filtrado["Categoria"].isin(categoria_selecionada)]
 if "Todos" not in centro_custo_selecionado:
     df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
-if "Todos" not in tipo_selecionado:
-    df_filtrado = df_filtrado[df_filtrado["Tipo"].isin(tipo_selecionado)]
-if "Todos" not in subtipo_selecionado:
-    df_filtrado = df_filtrado[df_filtrado["Subtipo"].isin(subtipo_selecionado)]
-if "Todos" not in status_selecionado:
-    df_filtrado = df_filtrado[df_filtrado["Status (Pago/Em Aberto)"].isin(status_selecionado)]
 
 # ---- Exibir Tabela Filtrada ----
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
 st.dataframe(df_filtrado)
 
-# ---- Indicadores Financeiros ----
+# ---- Gráficos ----
+st.subheader("📊 Análises Financeiras")
+
+col_graf1, col_graf2 = st.columns(2)
+
+# 🔹 Gráfico de Gastos por Centro de Custo
+fig_centro_custo = px.bar(df_filtrado, 
+                          x="Centro de custo", 
+                          y="Valor", 
+                          color="Centro de custo", 
+                          title="Gastos por Centro de Custo",
+                          text_auto=True)
+col_graf1.plotly_chart(fig_centro_custo, use_container_width=True)
+
+# 🔹 Gráfico de Distribuição de Gastos Fixos vs Variáveis
+fig_pizza = px.pie(df_filtrado, 
+                   names="Categoria", 
+                   values="Valor", 
+                   title="Distribuição de Gastos Fixos vs Variáveis",
+                   hole=0.4)
+col_graf2.plotly_chart(fig_pizza, use_container_width=True)
+
+# ---- Resumo Financeiro ----
 st.sidebar.header("📊 Resumo Financeiro")
 
 total_gastos = df_filtrado["Valor"].sum()
 media_gastos = df_filtrado["Valor"].mean()
-
-fixo = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
-variavel = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
 
 st.sidebar.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 st.sidebar.metric(label="📊 Média de Gastos", value=f"R$ {media_gastos:,.2f}")
