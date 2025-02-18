@@ -2,27 +2,26 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---- Configuração do Tema Escuro ----
+# ---- Configuração do Layout Moderno ----
 st.set_page_config(page_title="Dashboard Financeiro - Vista Livre", layout="wide")
+
 st.markdown("""
     <style>
         body {
-            background-color: #0e1117;
-            color: white;
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
         }
         .stApp {
-            background-color: #0e1117;
-            color: white;
+            background-color: #ffffff;
         }
         .stMetric {
-            background-color: #1e2127;
             padding: 10px;
             border-radius: 8px;
-            color: white;
+            color: black;
             text-align: center;
         }
         .stMarkdown {
-            color: white;
+            color: black;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -122,7 +121,7 @@ st.subheader("📈 Análises Financeiras")
 df_centro_custo = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 col_graf1, col_tabela = st.columns(2)
 
-fig_centro_custo = px.bar(df_centro_custo, x="Centro de custo", y="Valor", color="Centro de custo",
+fig_centro_custo = px.bar(df_centro_custo, x="Valor", y="Centro de custo", orientation="h",
                           title="Gastos por Centro de Custo", text_auto=".2s")
 col_graf1.plotly_chart(fig_centro_custo, use_container_width=True)
 
