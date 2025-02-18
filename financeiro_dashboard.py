@@ -77,15 +77,21 @@ st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 # **Resumo Financeiro da Empresa**
 st.subheader("📌 Resumo Financeiro (Empresa)")
 col1, col2, col3 = st.columns(3)
-col1.metric("💰 Gastos Fixos (Empresa)", f"R$ {gastos_fixos_empresa:,.2f}")
-col2.metric("💸 Gastos Variáveis (Empresa)", f"R$ {gastos_variaveis_empresa:,.2f}")
-col3.metric("📊 Total de Gastos (Empresa)", f"R$ {total_gastos_empresa:,.2f}")
+with col1:
+    if st.button(f"💰 Gastos Fixos (Empresa): R$ {gastos_fixos_empresa:,.2f}"):
+        st.dataframe(df_empresa[df_empresa["Categoria"] == "Fixo"])
+with col2:
+    if st.button(f"💸 Gastos Variáveis (Empresa): R$ {gastos_variaveis_empresa:,.2f}"):
+        st.dataframe(df_empresa[df_empresa["Categoria"] == "Variável"])
+with col3:
+    st.metric("📊 Total de Gastos (Empresa)", f"R$ {total_gastos_empresa:,.2f}")
 
 st.markdown("---")
 
 # **Cartão de Crédito**
 st.subheader("💳 Gastos no Cartão de Crédito")
-st.metric("📌 Total no Cartão de Crédito", f"R$ {total_cartao_credito:,.2f}")
+if st.button(f"📌 Total no Cartão de Crédito: R$ {total_cartao_credito:,.2f}"):
+    st.dataframe(df_cartao)
 st.text(f"📌 Fixos: R$ {fixo_cartao:,.2f}  |  📌 Variáveis: R$ {variavel_cartao:,.2f}")
 
 st.markdown("---")
@@ -94,18 +100,21 @@ st.markdown("---")
 st.subheader("📈 Análises Financeiras")
 
 # **Gráfico de Gastos por Centro de Custo**
-fig_centro_custo = px.bar(df_empresa, x="Centro de custo", y="Valor", color="Categoria", title="Gastos por Centro de Custo")
+df_resumo_centro = df_empresa.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
+fig_centro_custo = px.bar(df_resumo_centro, x="Centro de custo", y="Valor", color="Centro de custo",
+                          title="Gastos por Centro de Custo", text_auto=True, height=400)
 st.plotly_chart(fig_centro_custo, use_container_width=True)
 
 # **Gráfico de Distribuição Fixo x Variável**
-fig_fixo_variavel = px.pie(df_empresa, names="Categoria", values="Valor", title="Distribuição de Gastos (Fixo vs Variável)")
-st.plotly_chart(fig_fixo_variavel, use_container_width=True)
+col4, col5 = st.columns((2, 1))  # Ajustar para que o gráfico de pizza fique à direita
+with col5:
+    fig_fixo_variavel = px.pie(df_empresa, names="Categoria", values="Valor", title="Distribuição de Gastos (Fixo vs Variável)")
+    st.plotly_chart(fig_fixo_variavel, use_container_width=True)
 
 st.markdown("---")
 
 # **Tabela de Resumo por Centro de Custo**
 st.subheader("📋 Resumo por Centro de Custo")
-df_resumo_centro = df_empresa.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 st.dataframe(df_resumo_centro, hide_index=True, use_container_width=True)
 
 st.markdown("---")
