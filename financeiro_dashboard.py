@@ -41,7 +41,7 @@ df_pagar, df_receber = load_data()
 
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
-# Sidebar - Filtros Interativos
+# Sidebar - Filtros Avançados
 st.sidebar.header("🔍 Filtros")
 
 # Escolher entre "Data de Lançamento" ou "Data de Vencimento"
@@ -52,41 +52,76 @@ data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Dat
 data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
 data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 
-# Filtro por Categoria
-categoria_opcoes = df_pagar["Categoria"].dropna().unique()
-categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categoria_opcoes, default=categoria_opcoes)
+# Criar opções para seleção múltipla e adicionar "Todos"
+def adicionar_todos(lista):
+    return ["Todos"] + list(lista)
 
-# Filtro por Status
-status_opcoes = df_pagar["Status (Pago/Em Aberto)"].dropna().unique()
-status_selecionado = st.sidebar.multiselect("Filtrar por Status (Pago/Em Aberto):", status_opcoes, default=status_opcoes)
+# Filtros Avançados
+categoria_opcoes = adicionar_todos(df_pagar["Categoria"].dropna().unique())
+centro_custo_opcoes = adicionar_todos(df_pagar["Centro de custo"].dropna().unique())
+tipo_opcoes = adicionar_todos(df_pagar["Tipo"].dropna().unique())
+subtipo_opcoes = adicionar_todos(df_pagar["Subtipo"].dropna().unique())
+status_opcoes = adicionar_todos(df_pagar["Status (Pago/Em Aberto)"].dropna().unique())
+
+# Seleção de Filtros
+categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categoria_opcoes, default="Todos")
+centro_custo_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_custo_opcoes, default="Todos")
+tipo_selecionado = st.sidebar.multiselect("Filtrar por Tipo:", tipo_opcoes, default="Todos")
+subtipo_selecionado = st.sidebar.multiselect("Filtrar por Subtipo:", subtipo_opcoes, default="Todos")
+status_selecionado = st.sidebar.multiselect("Filtrar por Status (Pago/Em Aberto):", status_opcoes, default="Todos")
 
 # Aplicar Filtros
 df_filtrado = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
-    (df_pagar[data_coluna] <= pd.to_datetime(data_fim)) &
-    (df_pagar["Categoria"].isin(categoria_selecionada)) &
-    (df_pagar["Status (Pago/Em Aberto)"].isin(status_selecionado))
+    (df_pagar[data_coluna] <= pd.to_datetime(data_fim))
 ]
+
+if "Todos" not in categoria_selecionada:
+    df_filtrado = df_filtrado[df_filtrado["Categoria"].isin(categoria_selecionada)]
+if "Todos" not in centro_custo_selecionado:
+    df_filtrado = df_filtrado[df_filtrado["Centro de custo"].isin(centro_custo_selecionado)]
+if "Todos" not in tipo_selecionado:
+    df_filtrado = df_filtrado[df_filtrado["Tipo"].isin(tipo_selecionado)]
+if "Todos" not in subtipo_selecionado:
+    df_filtrado = df_filtrado[df_filtrado["Subtipo"].isin(subtipo_selecionado)]
+if "Todos" not in status_selecionado:
+    df_filtrado = df_filtrado[df_filtrado["Status (Pago/Em Aberto)"].isin(status_selecionado)]
 
 # ---- Exibir Tabela Filtrada ----
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
 st.dataframe(df_filtrado)
 
-# ---- Criar Gráficos ----
-st.subheader("📈 Distribuição das Contas a Pagar")
+# ---- Indicadores Financeiros ----
+st.sidebar.header("📊 Resumo Financeiro")
 
-# Gráfico de Valores por Categoria
-fig_categoria = px.bar(df_filtrado, x="Categoria", y="Valor", color="Categoria", title="Total de Gastos por Categoria")
-st.plotly_chart(fig_categoria, use_container_width=True)
-
-# Gráfico de Valores por Status
-fig_status = px.pie(df_filtrado, names="Status (Pago/Em Aberto)", values="Valor", title="Status das Contas a Pagar")
-st.plotly_chart(fig_status, use_container_width=True)
-
-# ---- Resumo Financeiro ----
-st.sidebar.header("📊 Resumo")
 total_gastos = df_filtrado["Valor"].sum()
 media_gastos = df_filtrado["Valor"].mean()
 
+fixo = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
+variavel = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
+
 st.sidebar.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 st.sidebar.metric(label="📊 Média de Gastos", value=f"R$ {media_gastos:,.2f}")
+st.sidebar.metric(label="🏦 Gastos Fixos", value=f"R$ {fixo:,.2f}")
+st.sidebar.metric(label="📉 Gastos Variáveis", value=f"R$ {variavel:,.2f}")
+
+# ---- Criar Gráficos ----
+st.subheader("📈 Análises Financeiras")
+
+# Gráfico de Gastos Fixos x Variáveis
+fig_fixo_variavel = px.pie(
+    names=["Fixos", "Variáveis"], 
+    values=[fixo, variavel], 
+    title="Distribuição: Fixos x Variáveis"
+)
+st.plotly_chart(fig_fixo_variavel, use_container_width=True)
+
+# Gráfico de Gastos por Centro de Custo
+fig_centro_custo = px.bar(
+    df_filtrado, 
+    x="Centro de custo", 
+    y="Valor", 
+    color="Centro de custo", 
+    title="Gastos por Centro de Custo"
+)
+st.plotly_chart(fig_centro_custo, use_container_width=True)
