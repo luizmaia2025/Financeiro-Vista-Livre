@@ -27,7 +27,6 @@ st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
 # Sidebar - Filtros Interativos
 st.sidebar.header("🔍 Filtros")
-
 data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
 data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
 data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
@@ -52,44 +51,35 @@ total_cartao = df_cartao["Valor"].sum()
 fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
 
-# ---- Layout Melhorado ----
-with st.expander("💰 Resumo Financeiro", expanded=False):
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("🏦 Gastos Fixos"):
-            st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"], use_container_width=True)
-    with col2:
-        if st.button("📉 Gastos Variáveis"):
-            st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"], use_container_width=True)
-    with col3:
-        if st.button("💰 Total de Gastos"):
-            st.dataframe(df_filtrado, use_container_width=True)
+# ---- Layout ----
+st.subheader("Resumo Financeiro")
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("💰 Gastos Fixos"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"], use_container_width=True)
+    st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
+with col2:
+    if st.button("📉 Gastos Variáveis"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"], use_container_width=True)
+    st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
+with col3:
+    if st.button("📊 Total de Gastos"):
+        st.dataframe(df_filtrado, use_container_width=True)
+    st.metric(label="💰 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 
-st.markdown("---")
-
-# Seção do Cartão de Crédito
-with st.expander("💳 Gastos no Cartão de Crédito", expanded=False):
-    st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
-    st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
+# Cartão de Crédito
+st.subheader("💳 Gastos no Cartão de Crédito")
+if st.button("Ver Detalhes do Cartão"):
     st.dataframe(df_cartao, use_container_width=True)
+st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
+st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
 
-st.markdown("---")
-
-# ---- Análises Financeiras ----
+# ---- Gráficos ----
 st.subheader("📈 Análises Financeiras")
-fig_centro_custo = px.bar(df_filtrado, x="Centro de custo", y="Valor", color="Centro de custo", title="Gastos por Centro de Custo", text_auto=True, height=400)
+fig_centro_custo = px.bar(df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False),
+                          x="Centro de custo", y="Valor", text_auto=True, title="Gastos por Centro de Custo")
 st.plotly_chart(fig_centro_custo, use_container_width=True)
 
-st.subheader("📋 Resumo por Centro de Custo")
-df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
-st.dataframe(df_resumo_centro, use_container_width=True)
-
-st.markdown("---")
-
+# Gráfico de Pizza
 fig_fixo_variavel = px.pie(df_filtrado, names="Categoria", values="Valor", title="Distribuição dos Gastos (Fixo vs Variável)")
 st.plotly_chart(fig_fixo_variavel, use_container_width=True)
-
-st.markdown("---")
-
-st.subheader("📋 Dados Filtrados - Contas a Pagar")
-st.dataframe(df_filtrado, use_container_width=True)
