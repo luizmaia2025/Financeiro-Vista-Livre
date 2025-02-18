@@ -74,9 +74,10 @@ gastos_fixos = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
 gastos_variaveis = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
 
 # ---- Cartão de Crédito ----
-cartao_credito_total = df_filtrado[df_filtrado["Tipo"] == "Cartão de crédito"]["Valor"].sum()
-cartao_credito_fixo = df_filtrado[(df_filtrado["Tipo"] == "Cartão de crédito") & (df_filtrado["Categoria"] == "Fixo")]["Valor"].sum()
-cartao_credito_variavel = df_filtrado[(df_filtrado["Tipo"] == "Cartão de crédito") & (df_filtrado["Categoria"] == "Variável")]["Valor"].sum()
+df_cartao = df_filtrado[df_filtrado["Tipo"] == "Cartão de crédito"]
+cartao_credito_total = df_cartao["Valor"].sum()
+cartao_credito_fixo = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
+cartao_credito_variavel = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
 
 # ---- Layout do Dashboard ----
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
@@ -120,6 +121,17 @@ st.divider()
 # Gráfico de Distribuição Fixo x Variável
 fig_fixo_variavel = px.pie(df_filtrado, names="Categoria", values="Valor", title="Distribuição dos Gastos (Fixo vs Variável)")
 st.plotly_chart(fig_fixo_variavel, use_container_width=True)
+
+st.divider()
+
+# ---- Gráfico de Gastos por Tipo de Despesa ----
+st.subheader("📊 Gastos por Tipo de Despesa")
+df_tipo_despesa = df_filtrado.groupby("Tipo")["Valor"].sum().reset_index()
+df_tipo_despesa = df_tipo_despesa.sort_values(by="Valor", ascending=False)
+
+# Gráfico de barras
+fig_tipo_despesa = px.bar(df_tipo_despesa, x="Tipo", y="Valor", color="Tipo", title="Gastos por Tipo de Despesa", text_auto=".2s")
+st.plotly_chart(fig_tipo_despesa, use_container_width=True)
 
 st.divider()
 
