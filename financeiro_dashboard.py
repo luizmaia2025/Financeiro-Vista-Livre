@@ -43,24 +43,30 @@ data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Dat
 data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
 data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 
-# Filtro por Centro de Custo
+# Filtro por Centro de Custo com opção de selecionar todos
 centro_opcoes = df_pagar["Centro de custo"].dropna().unique()
-centro_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_opcoes, default=centro_opcoes)
+if st.sidebar.checkbox("Selecionar Todos os Centros de Custo", value=True):
+    centro_selecionado = centro_opcoes
+else:
+    centro_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_opcoes, default=centro_opcoes)
 
-# Aplicar Filtros
-df_filtrado = df_pagar[
+# Aplicar Filtros no DataFrame geral da empresa
+df_filtrado_empresa = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
     (df_pagar[data_coluna] <= pd.to_datetime(data_fim)) &
     (df_pagar["Centro de custo"].isin(centro_selecionado))
 ]
 
-# ---- Cálculo dos Valores ----
-gastos_fixos = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
-gastos_variaveis = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
-total_gastos = df_filtrado["Valor"].sum()
+# **Cálculo dos valores apenas para a empresa**
+gastos_fixos_empresa = df_filtrado_empresa[df_filtrado_empresa["Categoria"] == "Fixo"]["Valor"].sum()
+gastos_variaveis_empresa = df_filtrado_empresa[df_filtrado_empresa["Categoria"] == "Variável"]["Valor"].sum()
+total_gastos_empresa = df_filtrado_empresa["Valor"].sum()
 
-# **Cartão de Crédito - Considerando Apenas o Período Selecionado**
-df_cartao = df_filtrado[df_filtrado["Subtipo"] == "Cartão de crédito"]
+# **Cálculo separado dos valores apenas para o cartão de crédito**
+df_cartao = df_pagar[(df_pagar["Subtipo"] == "Cartão de crédito") &
+                      (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
+                      (df_pagar[data_coluna] <= pd.to_datetime(data_fim))]
+
 total_cartao = df_cartao["Valor"].sum()
 fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
@@ -71,16 +77,19 @@ st.markdown("### 📌 Resumo Financeiro")
 # Exibição de Gastos Fixos e Variáveis de forma mais clara
 col1, col2, col3 = st.columns(3)
 with col1:
-    with st.expander(f"💰 Gastos Fixos: R$ {gastos_fixos:,.2f}"):
-        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"])
+    st.markdown(f"💰 **Gastos Fixos**: R$ {gastos_fixos_empresa:,.2f}")
+    if st.button("Ver Detalhes Fixos"):
+        st.dataframe(df_filtrado_empresa[df_filtrado_empresa["Categoria"] == "Fixo"])
 
 with col2:
-    with st.expander(f"📉 Gastos Variáveis: R$ {gastos_variaveis:,.2f}"):
-        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"])
+    st.markdown(f"📉 **Gastos Variáveis**: R$ {gastos_variaveis_empresa:,.2f}")
+    if st.button("Ver Detalhes Variáveis"):
+        st.dataframe(df_filtrado_empresa[df_filtrado_empresa["Categoria"] == "Variável"])
 
 with col3:
-    with st.expander(f"📊 Total de Gastos: R$ {total_gastos:,.2f}"):
-        st.dataframe(df_filtrado)
+    st.markdown(f"📊 **Total de Gastos**: R$ {total_gastos_empresa:,.2f}")
+    if st.button("Ver Detalhes Totais"):
+        st.dataframe(df_filtrado_empresa)
 
 st.markdown("---")
 
@@ -90,7 +99,7 @@ st.write(f"💳 Total no Cartão de Crédito: **R$ {total_cartao:,.2f}**")
 st.write(f"🔹 Fixos: **R$ {fixo_cartao:,.2f}**  |  🔸 Variáveis: **R$ {variavel_cartao:,.2f}**")
 
 # Botão interativo para exibir detalhes do cartão
-with st.expander("🔍 Ver detalhes do Cartão"):
+if st.button("🔍 Ver detalhes do Cartão"):
     st.dataframe(df_cartao)
 
 st.markdown("---")
@@ -99,16 +108,16 @@ st.markdown("---")
 st.subheader("📈 Análises Financeiras")
 
 # Gráfico de Gastos por Centro de Custo
-df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
+df_resumo_centro = df_filtrado_empresa.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 fig_centro_custo = px.bar(df_resumo_centro, x="Centro de custo", y="Valor", text_auto=True, title="Gastos por Centro de Custo", height=400)
 st.plotly_chart(fig_centro_custo, use_container_width=True)
 
 # Gráfico de Pizza - Distribuição Fixo x Variável
-fig_fixo_variavel = px.pie(df_filtrado, names="Categoria", values="Valor", title="Distribuição dos Gastos (Fixo vs Variável)")
+fig_fixo_variavel = px.pie(df_filtrado_empresa, names="Categoria", values="Valor", title="Distribuição dos Gastos (Fixo vs Variável)")
 st.plotly_chart(fig_fixo_variavel, use_container_width=True)
 
 st.markdown("---")
 
 # **Tabela Completa dos Dados Filtrados**
 st.subheader("📋 Dados Filtrados - Contas a Pagar")
-st.dataframe(df_filtrado)
+st.dataframe(df_filtrado_empresa)
