@@ -10,7 +10,7 @@ SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
 SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
 
 # ---- Função para Carregar Dados ----
-@st.cache_data
+@st.cache_data(ttl=600)  # Atualiza a cada 10 minutos para evitar cache desatualizado
 def load_data():
     try:
         df_pagar = pd.read_csv(SHEET_URL_PAGAR)
@@ -44,7 +44,7 @@ data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Dat
 data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
 data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 
-# Filtro por Centro de Custo (para empresa)
+# Filtro por Centro de Custo
 centro_opcoes = df_pagar["Centro de custo"].dropna().unique()
 centro_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_opcoes, default=centro_opcoes)
 
@@ -71,6 +71,11 @@ total_cartao_credito = df_cartao["Valor"].sum()
 fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
 
+# ---- Botões para abrir e fechar tabelas ----
+mostrar_fixos = st.checkbox("🔍 Mostrar Gastos Fixos")
+mostrar_variaveis = st.checkbox("🔍 Mostrar Gastos Variáveis")
+mostrar_cartao = st.checkbox("💳 Mostrar Gastos no Cartão de Crédito")
+
 # ---- Exibição dos Dados ----
 st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 
@@ -78,21 +83,30 @@ st.title("📊 Dashboard Financeiro - Vista Livre 2025")
 st.subheader("📌 Resumo Financeiro (Empresa)")
 col1, col2, col3 = st.columns(3)
 with col1:
-    if st.button(f"💰 Gastos Fixos (Empresa): R$ {gastos_fixos_empresa:,.2f}"):
-        st.dataframe(df_empresa[df_empresa["Categoria"] == "Fixo"])
+    st.metric("💰 Gastos Fixos", f"R$ {gastos_fixos_empresa:,.2f}")
 with col2:
-    if st.button(f"💸 Gastos Variáveis (Empresa): R$ {gastos_variaveis_empresa:,.2f}"):
-        st.dataframe(df_empresa[df_empresa["Categoria"] == "Variável"])
+    st.metric("💸 Gastos Variáveis", f"R$ {gastos_variaveis_empresa:,.2f}")
 with col3:
-    st.metric("📊 Total de Gastos (Empresa)", f"R$ {total_gastos_empresa:,.2f}")
+    st.metric("📊 Total de Gastos", f"R$ {total_gastos_empresa:,.2f}")
+
+if mostrar_fixos:
+    st.subheader("📋 Gastos Fixos - Detalhamento")
+    st.dataframe(df_empresa[df_empresa["Categoria"] == "Fixo"])
+
+if mostrar_variaveis:
+    st.subheader("📋 Gastos Variáveis - Detalhamento")
+    st.dataframe(df_empresa[df_empresa["Categoria"] == "Variável"])
 
 st.markdown("---")
 
 # **Cartão de Crédito**
 st.subheader("💳 Gastos no Cartão de Crédito")
-if st.button(f"📌 Total no Cartão de Crédito: R$ {total_cartao_credito:,.2f}"):
-    st.dataframe(df_cartao)
+st.metric("📌 Total no Cartão de Crédito", f"R$ {total_cartao_credito:,.2f}")
 st.text(f"📌 Fixos: R$ {fixo_cartao:,.2f}  |  📌 Variáveis: R$ {variavel_cartao:,.2f}")
+
+if mostrar_cartao:
+    st.subheader("📋 Detalhamento dos Gastos no Cartão de Crédito")
+    st.dataframe(df_cartao)
 
 st.markdown("---")
 
@@ -106,7 +120,7 @@ fig_centro_custo = px.bar(df_resumo_centro, x="Centro de custo", y="Valor", colo
 st.plotly_chart(fig_centro_custo, use_container_width=True)
 
 # **Gráfico de Distribuição Fixo x Variável**
-col4, col5 = st.columns((2, 1))  # Ajustar para que o gráfico de pizza fique à direita
+col4, col5 = st.columns((2, 1))
 with col5:
     fig_fixo_variavel = px.pie(df_empresa, names="Categoria", values="Valor", title="Distribuição de Gastos (Fixo vs Variável)")
     st.plotly_chart(fig_fixo_variavel, use_container_width=True)
