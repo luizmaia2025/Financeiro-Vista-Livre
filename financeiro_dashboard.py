@@ -90,14 +90,42 @@ st.markdown("---")
 # ---- Análises Financeiras ----
 st.subheader("📈 Análises Financeiras")
 
-# Gráfico de Gastos por Centro de Custo
+# Criar DataFrame de Resumo por Centro de Custo
 df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
-fig_centro_custo = px.bar(df_resumo_centro, x="Centro de custo", y="Valor", text_auto=True, title="Gastos por Centro de Custo", height=400)
-st.plotly_chart(fig_centro_custo, use_container_width=True)
 
-# Gráfico de Pizza - Distribuição Fixo x Variável
-fig_fixo_variavel = px.pie(df_filtrado, names="Categoria", values="Valor", title="Distribuição dos Gastos (Fixo vs Variável)")
-st.plotly_chart(fig_fixo_variavel, use_container_width=True)
+# Criar colunas para posicionamento dos gráficos
+col_grafico1, col_grafico2 = st.columns(2)
+
+# Gráfico de Barras com Interatividade
+with col_grafico1:
+    st.subheader("📊 Gastos por Centro de Custo")
+    fig_centro_custo = px.bar(df_resumo_centro, 
+                              x="Centro de custo", 
+                              y="Valor", 
+                              text_auto=True, 
+                              title="Gastos por Centro de Custo", 
+                              height=400)
+    
+    # Criar uma seleção dinâmica
+    centro_selecionado_grafico = st.selectbox("Clique para ver detalhes:", df_resumo_centro["Centro de custo"])
+
+    # Mostrar tabela ao selecionar um centro de custo
+    if centro_selecionado_grafico:
+        st.subheader(f"📋 Detalhes: {centro_selecionado_grafico}")
+        df_detalhado = df_filtrado[df_filtrado["Centro de custo"] == centro_selecionado_grafico]
+        st.dataframe(df_detalhado, use_container_width=True)
+
+    st.plotly_chart(fig_centro_custo, use_container_width=True)
+
+# Gráfico de Pizza ao lado
+with col_grafico2:
+    st.subheader("📊 Distribuição % por Centro de Custo")
+    fig_pizza_centro_custo = px.pie(df_resumo_centro, 
+                                    names="Centro de custo", 
+                                    values="Valor", 
+                                    title="Distribuição Percentual dos Gastos",
+                                    height=400)
+    st.plotly_chart(fig_pizza_centro_custo, use_container_width=True)
 
 st.markdown("---")
 
