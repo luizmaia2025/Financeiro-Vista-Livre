@@ -2,34 +2,40 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-# Configuração da Página
+# 📌 Configuração inicial do Streamlit
 st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 
-# 📌 ID da Planilha do Google Sheets
+# 📌 ID da planilha Google Sheets
 SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
 
-# URLs das abas da planilha
+# 📌 URLs de exportação da planilha Google Sheets
 SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
 SHEET_URL_RECEBER = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20receber"
 
-# 🔄 Função para carregar os dados
+# 🔄 Função para carregar os dados com tratamento de erro
 @st.cache_data
 def load_data():
     try:
-        # Leitura dos dados
-        df_pagar = pd.read_csv(SHEET_URL_PAGAR)
-        df_receber = pd.read_csv(SHEET_URL_RECEBER)
+        df_pagar = pd.read_csv(SHEET_URL_PAGAR, dtype=str)
+        df_receber = pd.read_csv(SHEET_URL_RECEBER, dtype=str)
 
-        # Padronização dos nomes das colunas
+        # Remover espaços extras nos nomes das colunas
         df_pagar.columns = df_pagar.columns.str.strip()
         df_receber.columns = df_receber.columns.str.strip()
 
-        # Conversão de datas
-        df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], errors='coerce')
-        df_pagar["Data de Lançamento"] = pd.to_datetime(df_pagar["Data de Lançamento"], errors='coerce')
-        df_receber["Data de Vencimento"] = pd.to_datetime(df_receber["Data de Vencimento"], errors='coerce')
+        # Verificar nomes de colunas
+        expected_columns = ["Data lançamento", "Data de Vencimento", "Valor", "Categoria", "Status (Pago/Em Aberto)", "Forma de Pagamento"]
+        for col in expected_columns:
+            if col not in df_pagar.columns:
+                st.error(f"Coluna ausente: {col}. Verifique os nomes das colunas na planilha!")
+                st.stop()
 
-        # Conversão de valores monetários
+        # Converter colunas de data
+        df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], errors="coerce")
+        df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], errors="coerce")
+        df_receber["Data de Vencimento"] = pd.to_datetime(df_receber["Data de Vencimento"], errors="coerce")
+
+        # Converter valores financeiros
         df_pagar["Valor"] = (
             df_pagar["Valor"].astype(str)
             .str.replace("R$", "", regex=False)
@@ -52,21 +58,21 @@ def load_data():
 # 🚀 Carregar os dados
 df_pagar, df_receber = load_data()
 
-# 📌 Se não houver dados, exibir aviso
+# 📌 Se os dados não foram carregados corretamente
 if df_pagar.empty or df_receber.empty:
     st.warning("⚠️ Os dados não foram carregados. Verifique a URL e as permissões da planilha!")
     st.stop()
 
-# 🛠️ Filtros Interativos
+# 🛠️ Criando filtros interativos
 st.sidebar.header("🔎 Filtros")
-tipo_data = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
+tipo_data = st.sidebar.radio("Filtrar por:", ["Data lançamento", "Data de Vencimento"])
 categoria_filtro = st.sidebar.multiselect("Filtrar por Categoria:", df_pagar["Categoria"].dropna().unique(), default=df_pagar["Categoria"].dropna().unique())
 status_filtro = st.sidebar.multiselect("Filtrar por Status:", df_pagar["Status (Pago/Em Aberto)"].dropna().unique(), default=df_pagar["Status (Pago/Em Aberto)"].dropna().unique())
 forma_pagamento = st.sidebar.selectbox("Forma de Pagamento:", ["Todas"] + list(df_pagar["Forma de Pagamento"].dropna().unique()))
 data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[tipo_data].min())
 data_fim = st.sidebar.date_input("Data Final", df_pagar[tipo_data].max())
 
-# 🔍 Filtragem dos dados
+# 🔍 Aplicação dos filtros
 df_pagar_filtrado = df_pagar[
     (df_pagar[tipo_data] >= pd.to_datetime(data_inicio)) & 
     (df_pagar[tipo_data] <= pd.to_datetime(data_fim)) & 
@@ -92,7 +98,7 @@ col2.metric("📉 Média de Gastos", f"R$ {media_gastos:,.2f}")
 col3.metric("📈 Total de Contas a Receber", f"R$ {total_receber:,.2f}")
 col4.metric("💵 Saldo Líquido", f"R$ {saldo_liquido:,.2f}")
 
-# 📊 Gráficos
+# 📊 Gráficos interativos
 st.markdown("## 📊 Distribuição das Contas a Pagar")
 fig = px.bar(df_pagar_filtrado, x="Categoria", y="Valor", color="Categoria", title="Total de Gastos por Categoria")
 st.plotly_chart(fig, use_container_width=True)
