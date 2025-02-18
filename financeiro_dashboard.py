@@ -10,19 +10,19 @@ SHEET_URL_RECEBER = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?
 # Função para carregar os dados
 @st.cache_data
 def load_data():
-    df_pagar = pd.read_csv(SHEET_URL_PAGAR)
-    df_receber = pd.read_csv(SHEET_URL_RECEBER)
+    df_pagar = pd.read_csv(SHEET_URL_PAGAR, dtype=str).fillna("")
+    df_receber = pd.read_csv(SHEET_URL_RECEBER, dtype=str).fillna("")
 
     # Padronizar nomes das colunas
     df_pagar.columns = df_pagar.columns.str.strip()
     df_receber.columns = df_receber.columns.str.strip()
 
     # Converter colunas de data
-    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], format="%d/%m/%Y", errors="coerce")
-    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], format="%d/%m/%Y", errors="coerce")
+    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], errors="coerce", dayfirst=True)
+    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], errors="coerce", dayfirst=True)
     
-    df_receber["Data Fechamento"] = pd.to_datetime(df_receber["Data Fechamento"], format="%d/%m/%Y", errors="coerce")
-    df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], format="%d/%m/%Y", errors="coerce")
+    df_receber["Data Fechamento"] = pd.to_datetime(df_receber["Data Fechamento"], errors="coerce", dayfirst=True)
+    df_receber["Data de Recebimento"] = pd.to_datetime(df_receber["Data de Recebimento"], errors="coerce", dayfirst=True)
 
     # Corrigir a conversão da coluna "Valor"
     for df in [df_pagar, df_receber]:
@@ -30,9 +30,11 @@ def load_data():
             df["Valor"]
             .astype(str)
             .str.replace(r"[^\d,.-]", "", regex=True)  # Remove caracteres não numéricos
-            .str.replace(",", ".")  # Troca vírgula por ponto para decimal
-            .astype(float)  # Converte para float
+            .str.replace(",", ".", regex=False)  # Troca vírgula por ponto
         )
+        
+        # Converter para float, substituindo erros por 0
+        df["Valor"] = pd.to_numeric(df["Valor"], errors="coerce").fillna(0)
 
     return df_pagar, df_receber
 
@@ -61,7 +63,7 @@ formas_pagamento = ["Todas"] + df_pagar["Forma de Pagamento"].dropna().unique().
 forma_pagamento_selecionada = st.sidebar.selectbox("Forma de Pagamento:", formas_pagamento)
 
 # Filtro por Data Inicial e Final
-data_coluna = "Data lançamento" if tipo_data == "Data de Lançamento" else "Data de Vencimento"
+data_coluna = "Data de Vencimento" if tipo_data == "Data de Vencimento" else "Data lançamento"
 data_min = df_pagar[data_coluna].min()
 data_max = df_pagar[data_coluna].max()
 
