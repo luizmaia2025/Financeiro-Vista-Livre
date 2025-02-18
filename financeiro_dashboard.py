@@ -8,7 +8,7 @@ st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 # 🔹 Função para Carregar Dados
 @st.cache_data
 def load_data():
-    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6yx9HtMwUl3Uv.../pub?output=csv"
+    url = "https://docs.google.com/spreadsheets/d/1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc/edit?gid=0#gid=0.../pub?output=csv"
     df = pd.read_csv(url)
 
     # Ajustar nomes das colunas para evitar espaços invisíveis
