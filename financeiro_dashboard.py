@@ -87,47 +87,29 @@ df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_i
 df_fixo = df_filtrado[df_filtrado["Categoria"] == "Fixo"].groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 df_variavel = df_filtrado[df_filtrado["Categoria"] == "Variável"].groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 
+def gerar_graficos(df, titulo, categoria):
+    st.subheader(titulo)
+    col1, col2, col3 = st.columns([2, 1, 2])
+
+    with col1:
+        fig_bar = px.bar(df, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title=f"{titulo}", height=400)
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    with col2:
+        fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=400)
+        st.plotly_chart(fig_pizza, use_container_width=True)
+
+    with col3:
+        centro_selecionado_grafico = st.selectbox(f"Clique para ver detalhes de {titulo}:", df["Centro de custo"].unique(), key=f"{categoria}_detalhes")
+        if centro_selecionado_grafico:
+            st.subheader(f"📋 Detalhes: {centro_selecionado_grafico}")
+            st.dataframe(df_filtrado[df_filtrado["Centro de custo"] == centro_selecionado_grafico], use_container_width=True)
+
 ## 1️⃣ Gráfico de Gastos por Centro de Custo
-st.subheader("📊 Gastos por Centro de Custo")
-
-col1, col2, col3 = st.columns([2, 1, 2])
-
-with col1:
-    fig_centro_custo = px.bar(df_resumo_centro, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title="Gastos por Centro de Custo", height=400)
-    st.plotly_chart(fig_centro_custo, use_container_width=True)
-
-with col2:
-    fig_pizza_centro_custo = px.pie(df_resumo_centro, names="Centro de custo", values="Valor", title="Percentual dos Gastos", height=400)
-    st.plotly_chart(fig_pizza_centro_custo, use_container_width=True)
-
-with col3:
-    centro_selecionado_grafico = st.selectbox("Clique para ver detalhes:", df_resumo_centro["Centro de custo"])
-    if centro_selecionado_grafico:
-        st.subheader(f"📋 Detalhes: {centro_selecionado_grafico}")
-        st.dataframe(df_filtrado[df_filtrado["Centro de custo"] == centro_selecionado_grafico], use_container_width=True)
+gerar_graficos(df_resumo_centro, "📊 Gastos por Centro de Custo", "centro_custo")
 
 ## 2️⃣ Gráfico de Gastos Fixos por Centro de Custo
-st.subheader("🏦 Gastos Fixos por Centro de Custo")
-
-col4, col5, col6 = st.columns([2, 1, 2])
-
-with col4:
-    fig_fixo = px.bar(df_fixo, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title="Gastos Fixos por Centro de Custo", height=400)
-    st.plotly_chart(fig_fixo, use_container_width=True)
-
-with col5:
-    fig_pizza_fixo = px.pie(df_fixo, names="Centro de custo", values="Valor", title="Percentual dos Gastos Fixos", height=400)
-    st.plotly_chart(fig_pizza_fixo, use_container_width=True)
+gerar_graficos(df_fixo, "🏦 Gastos Fixos por Centro de Custo", "fixo")
 
 ## 3️⃣ Gráfico de Gastos Variáveis por Centro de Custo
-st.subheader("📉 Gastos Variáveis por Centro de Custo")
-
-col7, col8, col9 = st.columns([2, 1, 2])
-
-with col7:
-    fig_variavel = px.bar(df_variavel, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title="Gastos Variáveis por Centro de Custo", height=400)
-    st.plotly_chart(fig_variavel, use_container_width=True)
-
-with col8:
-    fig_pizza_variavel = px.pie(df_variavel, names="Centro de custo", values="Valor", title="Percentual dos Gastos Variáveis", height=400)
-    st.plotly_chart(fig_pizza_variavel, use_container_width=True)
+gerar_graficos(df_variavel, "📉 Gastos Variáveis por Centro de Custo", "variavel")
