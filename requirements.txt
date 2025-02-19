@@ -2,3 +2,9 @@ pandas
 streamlit
 plotly
 streamlit-extras
+seaborn
+altair
+scikit-learn
+ydata-profiling
+streamlit-option-menu
+
