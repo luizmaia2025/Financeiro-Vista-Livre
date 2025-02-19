@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import seaborn as sns
-import altair as alt
 from datetime import datetime
 
 # ---- Configuração da Página ----
@@ -12,11 +10,9 @@ st.set_page_config(page_title="📊 Controle Financeiro - Vista Livre", layout="
 st.markdown(
     """
     <style>
-        /* Ajuste do layout responsivo */
         .css-1d391kg {padding: 10px 20px;}
         .css-1cpxqw2 {margin-bottom: 10px;}
-
-        /* Melhorando botões */
+        
         .stButton>button {
             background-color: #007BFF;
             color: white;
@@ -29,17 +25,11 @@ st.markdown(
         .stButton>button:hover {
             background-color: #0056b3;
         }
-
-        /* Melhorando tabelas */
+        
         .stDataFrame {
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Ajuste do layout responsivo para gráficos */
-        @media screen and (max-width: 768px) {
-            .st-emotion-cache-16txtl3 {width: 100% !important;}
         }
     </style>
     """,
@@ -55,14 +45,11 @@ def load_data():
     df_pagar = pd.read_csv(SHEET_URL_PAGAR)
     df_pagar.columns = df_pagar.columns.str.strip()
 
-    # Correção na conversão de datas
+    # Conversão de datas com fallback seguro
     df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], errors="coerce")
     df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], errors="coerce")
-
-    # Remover valores inválidos
-    df_pagar = df_pagar.dropna(subset=["Data lançamento", "Data de Vencimento"])
-
-    # Corrigir formatação de valores monetários
+    
+    # Corrigir formatação de valores
     df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors='coerce')
 
@@ -77,13 +64,12 @@ st.sidebar.header("🔍 Filtros")
 data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
 data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
 
-# Definir valores padrão seguros
+# Evitar erro no filtro de datas
 data_min = df_pagar[data_coluna].min()
 data_max = df_pagar[data_coluna].max()
 
 if pd.isna(data_min) or pd.isna(data_max):
-    data_min = datetime(2023, 1, 1)  # Data segura de fallback
-    data_max = datetime(2025, 12, 31)
+    data_min, data_max = datetime(2023, 1, 1), datetime(2025, 12, 31)
 
 data_inicio = st.sidebar.date_input("Data Inicial", data_min)
 data_fim = st.sidebar.date_input("Data Final", data_max)
@@ -112,16 +98,24 @@ variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum(
 st.subheader("💰 Resumo Financeiro")
 col1, col2, col3 = st.columns(3)
 with col1:
+    if st.button("Ver Detalhes Fixos"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"], use_container_width=True)
     st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
 
 with col2:
+    if st.button("Ver Detalhes Variáveis"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"], use_container_width=True)
     st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
 
 with col3:
+    if st.button("Ver Detalhes Totais"):
+        st.dataframe(df_filtrado, use_container_width=True)
     st.metric(label="📊 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 
 # ---- Cartão de Crédito ----
 st.subheader("💳 Gastos no Cartão de Crédito")
+if st.button("Ver Detalhes do Cartão"):
+    st.dataframe(df_cartao, use_container_width=True)
 st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
 st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
 
@@ -130,18 +124,15 @@ st.subheader("📈 Análises Financeiras")
 
 df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 
-# Gráfico de barras refinado com Altair
-bar_chart = alt.Chart(df_resumo_centro).mark_bar().encode(
-    x=alt.X("Valor:Q", title="Valor"),
-    y=alt.Y("Centro de custo:N", title="Centro de Custo", sort='-x'),
-    color="Centro de custo:N"
-).properties(title="📊 Gastos por Centro de Custo", height=400)
+# Ajuste para garantir visualização correta dos gráficos
+col1, col2 = st.columns([2, 1])
 
-st.altair_chart(bar_chart, use_container_width=True)
+with col1:
+    fig_bar = px.bar(df_resumo_centro, y="Centro de custo", x="Valor", text_auto=True, orientation="h",
+                     title="📊 Gastos por Centro de Custo", height=400, color="Centro de custo")
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-# Gráfico de pizza refinado com Seaborn
-st.subheader("📊 Percentual de Gastos por Centro de Custo")
-fig, ax = plt.subplots(figsize=(5, 5))
-sns.set_palette("pastel")
-ax.pie(df_resumo_centro["Valor"], labels=df_resumo_centro["Centro de custo"], autopct="%1.1f%%")
-st.pyplot(fig)
+with col2:
+    fig_pizza = px.pie(df_resumo_centro, names="Centro de custo", values="Valor", title="📊 Percentual Gastos",
+                       height=320)  # Redução de 20%
+    st.plotly_chart(fig_pizza, use_container_width=True)
