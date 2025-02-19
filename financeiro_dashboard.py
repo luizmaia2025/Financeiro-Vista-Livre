@@ -45,11 +45,47 @@ df_filtrado = df_pagar[
 ]
 
 # ---- Cálculo dos Valores ----
+total_gastos = df_filtrado["Valor"].sum()
+gastos_fixos = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
+gastos_variaveis = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
+
+df_cartao = df_filtrado[df_filtrado["Subtipo"] == "Cartão de crédito"]
+total_cartao = df_cartao["Valor"].sum()
+fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
+variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
+
+# ---- Resumo Financeiro ----
+st.subheader("💰 Resumo Financeiro")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("Ver Detalhes Fixos"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"], use_container_width=True)
+    st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
+    
+with col2:
+    if st.button("Ver Detalhes Variáveis"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"], use_container_width=True)
+    st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
+
+with col3:
+    if st.button("Ver Detalhes Totais"):
+        st.dataframe(df_filtrado, use_container_width=True)
+    st.metric(label="📊 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
+
+# ---- Cartão de Crédito ----
+st.subheader("💳 Gastos no Cartão de Crédito")
+if st.button("Ver Detalhes do Cartão"):
+    st.dataframe(df_cartao, use_container_width=True)
+st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
+st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
+
+# ---- Gráficos ----
+st.subheader("📈 Análises Financeiras")
+
 df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 df_fixo = df_filtrado[df_filtrado["Categoria"] == "Fixo"].groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 df_variavel = df_filtrado[df_filtrado["Categoria"] == "Variável"].groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
-
-# ---- Gráficos ----
 
 ## 1️⃣ Gráfico de Gastos por Centro de Custo
 st.subheader("📊 Gastos por Centro de Custo")
@@ -57,31 +93,18 @@ st.subheader("📊 Gastos por Centro de Custo")
 col1, col2, col3 = st.columns([2, 1, 2])
 
 with col1:
-    st.subheader("📊 Gastos Totais")
-    fig_centro_custo = px.bar(df_resumo_centro, 
-                              y="Centro de custo", 
-                              x="Valor", 
-                              text_auto=True, 
-                              orientation="h",
-                              title="Gastos por Centro de Custo",
-                              height=400)
+    fig_centro_custo = px.bar(df_resumo_centro, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title="Gastos por Centro de Custo", height=400)
     st.plotly_chart(fig_centro_custo, use_container_width=True)
 
 with col2:
-    st.subheader("📊 % por Centro de Custo")
-    fig_pizza_centro_custo = px.pie(df_resumo_centro, 
-                                    names="Centro de custo", 
-                                    values="Valor", 
-                                    title="Percentual dos Gastos",
-                                    height=400)
+    fig_pizza_centro_custo = px.pie(df_resumo_centro, names="Centro de custo", values="Valor", title="Percentual dos Gastos", height=400)
     st.plotly_chart(fig_pizza_centro_custo, use_container_width=True)
 
 with col3:
     centro_selecionado_grafico = st.selectbox("Clique para ver detalhes:", df_resumo_centro["Centro de custo"])
     if centro_selecionado_grafico:
         st.subheader(f"📋 Detalhes: {centro_selecionado_grafico}")
-        df_detalhado = df_filtrado[df_filtrado["Centro de custo"] == centro_selecionado_grafico]
-        st.dataframe(df_detalhado, use_container_width=True)
+        st.dataframe(df_filtrado[df_filtrado["Centro de custo"] == centro_selecionado_grafico], use_container_width=True)
 
 ## 2️⃣ Gráfico de Gastos Fixos por Centro de Custo
 st.subheader("🏦 Gastos Fixos por Centro de Custo")
@@ -89,31 +112,12 @@ st.subheader("🏦 Gastos Fixos por Centro de Custo")
 col4, col5, col6 = st.columns([2, 1, 2])
 
 with col4:
-    st.subheader("📊 Gastos Fixos")
-    fig_fixo = px.bar(df_fixo, 
-                      y="Centro de custo", 
-                      x="Valor", 
-                      text_auto=True, 
-                      orientation="h",
-                      title="Gastos Fixos por Centro de Custo",
-                      height=400)
+    fig_fixo = px.bar(df_fixo, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title="Gastos Fixos por Centro de Custo", height=400)
     st.plotly_chart(fig_fixo, use_container_width=True)
 
 with col5:
-    st.subheader("📊 % por Centro de Custo")
-    fig_pizza_fixo = px.pie(df_fixo, 
-                            names="Centro de custo", 
-                            values="Valor", 
-                            title="Percentual dos Gastos Fixos",
-                            height=400)
+    fig_pizza_fixo = px.pie(df_fixo, names="Centro de custo", values="Valor", title="Percentual dos Gastos Fixos", height=400)
     st.plotly_chart(fig_pizza_fixo, use_container_width=True)
-
-with col6:
-    centro_fixo_grafico = st.selectbox("Clique para ver detalhes dos Fixos:", df_fixo["Centro de custo"])
-    if centro_fixo_grafico:
-        st.subheader(f"📋 Detalhes Fixos: {centro_fixo_grafico}")
-        df_detalhado_fixo = df_filtrado[(df_filtrado["Centro de custo"] == centro_fixo_grafico) & (df_filtrado["Categoria"] == "Fixo")]
-        st.dataframe(df_detalhado_fixo, use_container_width=True)
 
 ## 3️⃣ Gráfico de Gastos Variáveis por Centro de Custo
 st.subheader("📉 Gastos Variáveis por Centro de Custo")
@@ -121,28 +125,9 @@ st.subheader("📉 Gastos Variáveis por Centro de Custo")
 col7, col8, col9 = st.columns([2, 1, 2])
 
 with col7:
-    st.subheader("📊 Gastos Variáveis")
-    fig_variavel = px.bar(df_variavel, 
-                          y="Centro de custo", 
-                          x="Valor", 
-                          text_auto=True, 
-                          orientation="h",
-                          title="Gastos Variáveis por Centro de Custo",
-                          height=400)
+    fig_variavel = px.bar(df_variavel, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title="Gastos Variáveis por Centro de Custo", height=400)
     st.plotly_chart(fig_variavel, use_container_width=True)
 
 with col8:
-    st.subheader("📊 % por Centro de Custo")
-    fig_pizza_variavel = px.pie(df_variavel, 
-                                names="Centro de custo", 
-                                values="Valor", 
-                                title="Percentual dos Gastos Variáveis",
-                                height=400)
+    fig_pizza_variavel = px.pie(df_variavel, names="Centro de custo", values="Valor", title="Percentual dos Gastos Variáveis", height=400)
     st.plotly_chart(fig_pizza_variavel, use_container_width=True)
-
-with col9:
-    centro_variavel_grafico = st.selectbox("Clique para ver detalhes dos Variáveis:", df_variavel["Centro de custo"])
-    if centro_variavel_grafico:
-        st.subheader(f"📋 Detalhes Variáveis: {centro_variavel_grafico}")
-        df_detalhado_variavel = df_filtrado[(df_filtrado["Centro de custo"] == centro_variavel_grafico) & (df_filtrado["Categoria"] == "Variável")]
-        st.dataframe(df_detalhado_variavel, use_container_width=True)
