@@ -5,7 +5,9 @@ streamlit-extras
 seaborn
 altair
 scikit-learn
-ydata-profiling[notebook]
+ydata-profiling
 streamlit-option-menu
+pkg_resources
 setuptools
 wheel
+pyspark
