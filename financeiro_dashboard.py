@@ -1,67 +1,68 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import seaborn as sns
+import altair as alt
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from ydata_profiling import ProfileReport
+from streamlit_extras.st_button import button
+from streamlit_option_menu import option_menu
 
 # ---- Configuração da Página ----
 st.set_page_config(page_title="📊 Controle Financeiro - Vista Livre", layout="wide")
 
-# ---- Estilização Global (CSS) ----
+# ---- Estilização Global ----
 st.markdown(
     """
     <style>
-        /* Ajuste do layout responsivo */
         .css-1d391kg {padding: 10px 20px;}
         .css-1cpxqw2 {margin-bottom: 10px;}
-
-        /* Melhorando botões */
         .stButton>button {
             background-color: #007BFF;
             color: white;
             padding: 8px 20px;
             border-radius: 8px;
-            border: none;
             transition: 0.3s;
-            font-size: 14px;
         }
         .stButton>button:hover {
             background-color: #0056b3;
         }
-
-        /* Melhorando tabelas */
         .stDataFrame {
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Ajuste do layout responsivo para gráficos */
-        @media screen and (max-width: 768px) {
-            .st-emotion-cache-16txtl3 {width: 100% !important;}
         }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# ---- URL da Planilha no Google Sheets ----
+# ---- Menu Lateral ----
+menu = option_menu(
+    menu_title=None,
+    options=["Resumo", "Análises", "Previsões", "Exploração"],
+    icons=["clipboard", "bar-chart", "lightbulb", "search"],
+    menu_icon="cast",
+    default_index=0,
+    orientation="horizontal",
+)
+
+# ---- Carregar Dados ----
 SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
 SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
 
 @st.cache_data
 def load_data():
-    df_pagar = pd.read_csv(SHEET_URL_PAGAR)
-    df_pagar.columns = df_pagar.columns.str.strip()
-    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], dayfirst=True, errors='coerce')
-    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], dayfirst=True, errors='coerce')
-    df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
-    df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors='coerce')
-    return df_pagar
+    df = pd.read_csv(SHEET_URL_PAGAR)
+    df.columns = df.columns.str.strip()
+    df["Data lançamento"] = pd.to_datetime(df["Data lançamento"], dayfirst=True, errors='coerce')
+    df["Valor"] = pd.to_numeric(df["Valor"].str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False), errors='coerce')
+    return df
 
 df_pagar = load_data()
 
-st.title("📊 Controle Financeiro - Vista Livre")
-
-# ---- Sidebar - Filtros Interativos ----
+# ---- Filtros ----
 st.sidebar.header("🔍 Filtros")
 data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
 data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
@@ -69,68 +70,61 @@ data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
 data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 
 centro_opcoes = df_pagar["Centro de custo"].dropna().unique()
-selecionar_todos = st.sidebar.checkbox("Selecionar Todos os Centros de Custo", value=True)
-centro_selecionado = centro_opcoes if selecionar_todos else st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_opcoes, default=centro_opcoes)
+centro_selecionado = st.sidebar.multiselect("Filtrar por Centro de Custo:", centro_opcoes, default=centro_opcoes)
 
+# ---- Aplicando Filtros ----
 df_filtrado = df_pagar[
     (df_pagar[data_coluna] >= pd.to_datetime(data_inicio)) &
     (df_pagar[data_coluna] <= pd.to_datetime(data_fim)) &
     (df_pagar["Centro de custo"].isin(centro_selecionado))
 ]
 
-# ---- Cálculo dos Valores ----
-total_gastos = df_filtrado["Valor"].sum()
-gastos_fixos = df_filtrado[df_filtrado["Categoria"] == "Fixo"]["Valor"].sum()
-gastos_variaveis = df_filtrado[df_filtrado["Categoria"] == "Variável"]["Valor"].sum()
-
-df_cartao = df_filtrado[df_filtrado["Subtipo"] == "Cartão de crédito"]
-total_cartao = df_cartao["Valor"].sum()
-fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
-variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
-
-# ---- Resumo Financeiro ----
-st.subheader("💰 Resumo Financeiro")
-col1, col2, col3 = st.columns(3)
-with col1:
-    if st.button("Ver Detalhes Fixos"):
-        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"], use_container_width=True)
-    st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
-
-with col2:
-    if st.button("Ver Detalhes Variáveis"):
-        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"], use_container_width=True)
-    st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
-
-with col3:
-    if st.button("Ver Detalhes Totais"):
-        st.dataframe(df_filtrado, use_container_width=True)
-    st.metric(label="📊 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
-
-# ---- Cartão de Crédito ----
-st.subheader("💳 Gastos no Cartão de Crédito")
-if st.button("Ver Detalhes do Cartão"):
-    st.dataframe(df_cartao, use_container_width=True)
-st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
-st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
-
-# ---- Função para Gerar Gráficos ----
-def gerar_graficos(df, titulo):
-    st.subheader(titulo)
-    col1, col2 = st.columns([2, 1])
-
+# ---- Seção de Resumo Financeiro ----
+if menu == "Resumo":
+    st.subheader("💰 Resumo Financeiro")
+    col1, col2, col3 = st.columns(3)
     with col1:
-        fig_bar = px.bar(df, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title=f"{titulo}", height=400, color="Centro de custo")
-        st.plotly_chart(fig_bar, use_container_width=True)
-
+        button("Ver Detalhes Fixos")
+        st.metric("🏦 Gastos Fixos", f"R$ {df_filtrado[df_filtrado['Categoria'] == 'Fixo']['Valor'].sum():,.2f}")
     with col2:
-        fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=400)
+        button("Ver Detalhes Variáveis")
+        st.metric("📉 Gastos Variáveis", f"R$ {df_filtrado[df_filtrado['Categoria'] == 'Variável']['Valor'].sum():,.2f}")
+    with col3:
+        button("Ver Detalhes Totais")
+        st.metric("📊 Total de Gastos", f"R$ {df_filtrado['Valor'].sum():,.2f}")
+
+# ---- Seção de Análises ----
+if menu == "Análises":
+    st.subheader("📈 Análises Financeiras")
+    fig_bar = alt.Chart(df_filtrado).mark_bar().encode(
+        x="Valor",
+        y="Centro de custo",
+        color="Centro de custo"
+    ).properties(width=600)
+    
+    fig_pizza = px.pie(df_filtrado, names="Centro de custo", values="Valor", title="Distribuição % por Centro de Custo", height=300)
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.altair_chart(fig_bar, use_container_width=True)
+    with col2:
         st.plotly_chart(fig_pizza, use_container_width=True)
 
-# ---- Gráficos ----
-st.subheader("📈 Análises Financeiras")
+# ---- Seção de Previsões ----
+if menu == "Previsões":
+    st.subheader("🔮 Previsão de Gastos")
+    df_pagar['Mês'] = df_pagar["Data lançamento"].dt.month
+    X = np.array(df_pagar['Mês']).reshape(-1,1)
+    y = df_pagar['Valor']
+    modelo = LinearRegression()
+    modelo.fit(X, y)
+    previsao = modelo.predict(np.array([[13]]))
+    st.write(f"🔮 Previsão de gastos para o próximo mês: R$ {previsao[0]:,.2f}")
 
-df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
-
-gerar_graficos(df_resumo_centro, "📊 Gastos por Centro de Custo")
-gerar_graficos(df_filtrado[df_filtrado["Categoria"] == "Fixo"].groupby("Centro de custo")["Valor"].sum().reset_index(), "🏦 Gastos Fixos por Centro de Custo")
-gerar_graficos(df_filtrado[df_filtrado["Categoria"] == "Variável"].groupby("Centro de custo")["Valor"].sum().reset_index(), "📉 Gastos Variáveis por Centro de Custo")
+# ---- Seção de Análise Exploratória ----
+if menu == "Exploração":
+    st.subheader("🔍 Análise Exploratória")
+    report = ProfileReport(df_pagar, explorative=True)
+    st.write("Gerando relatório...")
+    report.to_file("relatorio_analise.html")
+    st.write("📄 [Baixar relatório completo](relatorio_analise.html)")
