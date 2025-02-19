@@ -2,18 +2,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---- Configuração do Tema ----
+# ---- Configuração da Página ----
 st.set_page_config(page_title="📊 Controle Financeiro - Vista Livre", layout="wide")
 
-# ---- Estilização Global ----
+# ---- Estilização Global (CSS) ----
 st.markdown(
     """
     <style>
-        /* Ajuste de layout geral */
+        /* Ajuste do layout responsivo */
         .css-1d391kg {padding: 10px 20px;}
         .css-1cpxqw2 {margin-bottom: 10px;}
 
-        /* Ajuste dos botões */
+        /* Melhorando botões */
         .stButton>button {
             background-color: #007BFF;
             color: white;
@@ -27,14 +27,14 @@ st.markdown(
             background-color: #0056b3;
         }
 
-        /* Melhorando as tabelas */
+        /* Melhorando tabelas */
         .stDataFrame {
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Ajuste para mobile */
+        /* Ajuste do layout responsivo para gráficos */
         @media screen and (max-width: 768px) {
             .st-emotion-cache-16txtl3 {width: 100% !important;}
         }
@@ -43,7 +43,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ---- URL pública da planilha no Google Sheets ----
+# ---- URL da Planilha no Google Sheets ----
 SHEET_ID = "1hxeG2XDXR3yVrKNCB9wdgUtY0oX22IjmnDi3iitPboc"
 SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Contas%20a%20pagar"
 
@@ -106,11 +106,14 @@ with col3:
         st.dataframe(df_filtrado, use_container_width=True)
     st.metric(label="📊 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
 
-# ---- Gráficos ----
-st.subheader("📈 Análises Financeiras")
+# ---- Cartão de Crédito ----
+st.subheader("💳 Gastos no Cartão de Crédito")
+if st.button("Ver Detalhes do Cartão"):
+    st.dataframe(df_cartao, use_container_width=True)
+st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
+st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
 
-df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
-
+# ---- Função para Gerar Gráficos ----
 def gerar_graficos(df, titulo):
     st.subheader(titulo)
     col1, col2 = st.columns([2, 1])
@@ -123,7 +126,11 @@ def gerar_graficos(df, titulo):
         fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=400)
         st.plotly_chart(fig_pizza, use_container_width=True)
 
-## Gráficos
+# ---- Gráficos ----
+st.subheader("📈 Análises Financeiras")
+
+df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
+
 gerar_graficos(df_resumo_centro, "📊 Gastos por Centro de Custo")
 gerar_graficos(df_filtrado[df_filtrado["Categoria"] == "Fixo"].groupby("Centro de custo")["Valor"].sum().reset_index(), "🏦 Gastos Fixos por Centro de Custo")
 gerar_graficos(df_filtrado[df_filtrado["Categoria"] == "Variável"].groupby("Centro de custo")["Valor"].sum().reset_index(), "📉 Gastos Variáveis por Centro de Custo")
