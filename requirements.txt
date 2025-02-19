@@ -8,4 +8,8 @@ scikit-learn
 ydata-profiling[notebook]
 streamlit-option-menu
 pkg_resources
+setuptools
+wheel
+pyspark
+
 
