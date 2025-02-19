@@ -7,7 +7,5 @@ altair
 scikit-learn
 ydata-profiling
 streamlit-option-menu
-pkg_resources
 setuptools
 wheel
-pyspark
