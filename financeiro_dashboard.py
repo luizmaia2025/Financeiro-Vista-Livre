@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
 
 # ---- Configuração da Página ----
 st.set_page_config(page_title="📊 Controle Financeiro - Vista Livre", layout="wide")
@@ -10,9 +9,11 @@ st.set_page_config(page_title="📊 Controle Financeiro - Vista Livre", layout="
 st.markdown(
     """
     <style>
+        /* Ajuste do layout responsivo */
         .css-1d391kg {padding: 10px 20px;}
         .css-1cpxqw2 {margin-bottom: 10px;}
-        
+
+        /* Melhorando botões */
         .stButton>button {
             background-color: #007BFF;
             color: white;
@@ -25,11 +26,17 @@ st.markdown(
         .stButton>button:hover {
             background-color: #0056b3;
         }
-        
+
+        /* Melhorando tabelas */
         .stDataFrame {
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Ajuste do layout responsivo para gráficos */
+        @media screen and (max-width: 768px) {
+            .st-emotion-cache-16txtl3 {width: 100% !important;}
         }
     </style>
     """,
@@ -44,15 +51,10 @@ SHEET_URL_PAGAR = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tq
 def load_data():
     df_pagar = pd.read_csv(SHEET_URL_PAGAR)
     df_pagar.columns = df_pagar.columns.str.strip()
-
-    # Conversão de datas com fallback seguro
-    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], errors="coerce")
-    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], errors="coerce")
-    
-    # Corrigir formatação de valores
+    df_pagar["Data lançamento"] = pd.to_datetime(df_pagar["Data lançamento"], dayfirst=True, errors='coerce')
+    df_pagar["Data de Vencimento"] = pd.to_datetime(df_pagar["Data de Vencimento"], dayfirst=True, errors='coerce')
     df_pagar["Valor"] = df_pagar["Valor"].astype(str).str.replace("R$", "", regex=False).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     df_pagar["Valor"] = pd.to_numeric(df_pagar["Valor"], errors='coerce')
-
     return df_pagar
 
 df_pagar = load_data()
@@ -63,16 +65,8 @@ st.title("📊 Controle Financeiro - Vista Livre")
 st.sidebar.header("🔍 Filtros")
 data_tipo = st.sidebar.radio("Filtrar por:", ["Data de Lançamento", "Data de Vencimento"])
 data_coluna = "Data lançamento" if data_tipo == "Data de Lançamento" else "Data de Vencimento"
-
-# Evitar erro no filtro de datas
-data_min = df_pagar[data_coluna].min()
-data_max = df_pagar[data_coluna].max()
-
-if pd.isna(data_min) or pd.isna(data_max):
-    data_min, data_max = datetime(2023, 1, 1), datetime(2025, 12, 31)
-
-data_inicio = st.sidebar.date_input("Data Inicial", data_min)
-data_fim = st.sidebar.date_input("Data Final", data_max)
+data_inicio = st.sidebar.date_input("Data Inicial", df_pagar[data_coluna].min())
+data_fim = st.sidebar.date_input("Data Final", df_pagar[data_coluna].max())
 
 centro_opcoes = df_pagar["Centro de custo"].dropna().unique()
 selecionar_todos = st.sidebar.checkbox("Selecionar Todos os Centros de Custo", value=True)
@@ -119,20 +113,24 @@ if st.button("Ver Detalhes do Cartão"):
 st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
 st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
 
+# ---- Função para Gerar Gráficos ----
+def gerar_graficos(df, titulo):
+    st.subheader(titulo)
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        fig_bar = px.bar(df, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title=f"{titulo}", height=400, color="Centro de custo")
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    with col2:
+        fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=400)
+        st.plotly_chart(fig_pizza, use_container_width=True)
+
 # ---- Gráficos ----
 st.subheader("📈 Análises Financeiras")
 
 df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 
-# Ajuste para garantir visualização correta dos gráficos
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    fig_bar = px.bar(df_resumo_centro, y="Centro de custo", x="Valor", text_auto=True, orientation="h",
-                     title="📊 Gastos por Centro de Custo", height=400, color="Centro de custo")
-    st.plotly_chart(fig_bar, use_container_width=True)
-
-with col2:
-    fig_pizza = px.pie(df_resumo_centro, names="Centro de custo", values="Valor", title="📊 Percentual Gastos",
-                       height=320)  # Redução de 20%
-    st.plotly_chart(fig_pizza, use_container_width=True)
+gerar_graficos(df_resumo_centro, "📊 Gastos por Centro de Custo")
+gerar_graficos(df_filtrado[df_filtrado["Categoria"] == "Fixo"].groupby("Centro de custo")["Valor"].sum().reset_index(), "🏦 Gastos Fixos por Centro de Custo")
+gerar_graficos(df_filtrado[df_filtrado["Categoria"] == "Variável"].groupby("Centro de custo")["Valor"].sum().reset_index(), "📉 Gastos Variáveis por Centro de Custo")
