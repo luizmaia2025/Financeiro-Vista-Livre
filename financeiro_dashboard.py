@@ -88,87 +88,21 @@ total_cartao = df_cartao["Valor"].sum()
 fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
 
-# ---- Resumo Financeiro ----
-st.subheader("💰 Resumo Financeiro")
-col1, col2, col3 = st.columns(3)
-with col1:
-    if st.button("Ver Detalhes Fixos"):
-        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"], use_container_width=True)
-    st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
-
-with col2:
-    if st.button("Ver Detalhes Variáveis"):
-        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"], use_container_width=True)
-    st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
-
-with col3:
-    if st.button("Ver Detalhes Totais"):
-        st.dataframe(df_filtrado, use_container_width=True)
-    st.metric(label="📊 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
-
-# ---- Cartão de Crédito ----
-st.subheader("💳 Gastos no Cartão de Crédito")
-if st.button("Ver Detalhes do Cartão"):
-    st.dataframe(df_cartao, use_container_width=True)
-st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
-st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
-
 # ---- Função para Gerar Gráficos ----
 def gerar_graficos(df, titulo):
     st.subheader(titulo)
-    col1, col2 = st.columns([2, 1])
+    col1, col2 = st.columns([2, 0.8])  # Reduzi o tamanho do gráfico de pizza em 20%
 
     with col1:
         fig_bar = px.bar(df, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title=f"{titulo}", height=400, color="Centro de custo")
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with col2:
-        fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=400)
+        fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=320)  # Reduzido de 400 para 320
         st.plotly_chart(fig_pizza, use_container_width=True)
 
 # ---- Gráficos ----
-st.subheader("📈 Análises Financeiras")
-
-# ---- Filtros Dinâmicos Adicionais ----
-st.sidebar.header("📅 Período de Análise")
-anos_disponiveis = df_pagar["Data lançamento"].dt.year.unique()
-ano_selecionado = st.sidebar.selectbox("Selecione o Ano:", sorted(anos_disponiveis, reverse=True))
-
-meses_disponiveis = df_pagar[df_pagar["Data lançamento"].dt.year == ano_selecionado]["Data lançamento"].dt.month.unique()
-mes_selecionado = st.sidebar.selectbox("Selecione o Mês:", sorted(meses_disponiveis))
-
-# Filtrar por Ano e Mês Selecionado
-df_filtrado = df_filtrado[
-    (df_filtrado["Data lançamento"].dt.year == ano_selecionado) &
-    (df_filtrado["Data lançamento"].dt.month == mes_selecionado)
-]
-
-# ---- Comparação Mensal ----
-st.subheader("📈 Comparação de Gastos Mensais")
-df_mensal = df_filtrado.groupby(df_filtrado["Data lançamento"].dt.month)["Valor"].sum().reset_index()
-fig_mensal = px.line(df_mensal, x="Data lançamento", y="Valor", markers=True, title="Tendência de Gastos Mensais")
-st.plotly_chart(fig_mensal, use_container_width=True)
-
-# ---- Comparação por Categoria ----
-st.subheader("📊 Gastos por Categoria")
-df_categoria = df_filtrado.groupby("Categoria")["Valor"].sum().reset_index()
-fig_categoria = px.bar(df_categoria, x="Categoria", y="Valor", color="Categoria", text_auto=True, title="Distribuição de Gastos por Categoria")
-st.plotly_chart(fig_categoria, use_container_width=True)
-
-# ---- Exportação de Dados ----
-st.sidebar.subheader("📥 Exportar Dados")
-csv = df_filtrado.to_csv(index=False).encode("utf-8")
-st.sidebar.download_button("Baixar CSV", data=csv, file_name="dados_financeiros.csv", mime="text/csv")
-
-# ---- Painel de Alertas Financeiros ----
-st.subheader("⚠️ Alertas Financeiros")
-media_gastos = df_pagar["Valor"].mean()
-if total_gastos > media_gastos * 1.2:
-    st.warning(f"🚨 Atenção! Seus gastos neste mês ({total_gastos:,.2f}) estão **20% acima da média histórica**!")
-elif total_gastos < media_gastos * 0.8:
-    st.success(f"🎉 Excelente! Seus gastos estão **20% abaixo da média histórica**!")
-
-
+st.subheader("📊 Análises Financeiras")
 
 df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 
