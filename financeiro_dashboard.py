@@ -6,7 +6,7 @@ import altair as alt
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from ydata_profiling import ProfileReport
-from streamlit_extras.app_button import app_button
+import streamlit_extras as stx
 from streamlit_option_menu import option_menu
 
 # ---- Configuração da Página ----
