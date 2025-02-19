@@ -88,21 +88,46 @@ total_cartao = df_cartao["Valor"].sum()
 fixo_cartao = df_cartao[df_cartao["Categoria"] == "Fixo"]["Valor"].sum()
 variavel_cartao = df_cartao[df_cartao["Categoria"] == "Variável"]["Valor"].sum()
 
+# ---- Resumo Financeiro ----
+st.subheader("💰 Resumo Financeiro")
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("Ver Detalhes Fixos"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Fixo"], use_container_width=True)
+    st.metric(label="🏦 Gastos Fixos", value=f"R$ {gastos_fixos:,.2f}")
+
+with col2:
+    if st.button("Ver Detalhes Variáveis"):
+        st.dataframe(df_filtrado[df_filtrado["Categoria"] == "Variável"], use_container_width=True)
+    st.metric(label="📉 Gastos Variáveis", value=f"R$ {gastos_variaveis:,.2f}")
+
+with col3:
+    if st.button("Ver Detalhes Totais"):
+        st.dataframe(df_filtrado, use_container_width=True)
+    st.metric(label="📊 Total de Gastos", value=f"R$ {total_gastos:,.2f}")
+
+# ---- Cartão de Crédito ----
+st.subheader("💳 Gastos no Cartão de Crédito")
+if st.button("Ver Detalhes do Cartão"):
+    st.dataframe(df_cartao, use_container_width=True)
+st.metric(label="💳 Total no Cartão de Crédito", value=f"R$ {total_cartao:,.2f}")
+st.text(f"🔹 Fixos: R$ {fixo_cartao:,.2f}  |  🔸 Variáveis: R$ {variavel_cartao:,.2f}")
+
 # ---- Função para Gerar Gráficos ----
 def gerar_graficos(df, titulo):
     st.subheader(titulo)
-    col1, col2 = st.columns([2, 0.8])  # Reduzi o tamanho do gráfico de pizza em 20%
+    col1, col2 = st.columns([2, 1])
 
     with col1:
         fig_bar = px.bar(df, y="Centro de custo", x="Valor", text_auto=True, orientation="h", title=f"{titulo}", height=400, color="Centro de custo")
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with col2:
-        fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=320)  # Reduzido de 400 para 320
+        fig_pizza = px.pie(df, names="Centro de custo", values="Valor", title=f"Percentual {titulo}", height=400)
         st.plotly_chart(fig_pizza, use_container_width=True)
 
 # ---- Gráficos ----
-st.subheader("📊 Análises Financeiras")
+st.subheader("📈 Análises Financeiras")
 
 df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 
