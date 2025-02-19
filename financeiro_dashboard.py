@@ -129,6 +129,47 @@ def gerar_graficos(df, titulo):
 # ---- Gráficos ----
 st.subheader("📈 Análises Financeiras")
 
+# ---- Filtros Dinâmicos Adicionais ----
+st.sidebar.header("📅 Período de Análise")
+anos_disponiveis = df_pagar["Data lançamento"].dt.year.unique()
+ano_selecionado = st.sidebar.selectbox("Selecione o Ano:", sorted(anos_disponiveis, reverse=True))
+
+meses_disponiveis = df_pagar[df_pagar["Data lançamento"].dt.year == ano_selecionado]["Data lançamento"].dt.month.unique()
+mes_selecionado = st.sidebar.selectbox("Selecione o Mês:", sorted(meses_disponiveis))
+
+# Filtrar por Ano e Mês Selecionado
+df_filtrado = df_filtrado[
+    (df_filtrado["Data lançamento"].dt.year == ano_selecionado) &
+    (df_filtrado["Data lançamento"].dt.month == mes_selecionado)
+]
+
+# ---- Comparação Mensal ----
+st.subheader("📈 Comparação de Gastos Mensais")
+df_mensal = df_filtrado.groupby(df_filtrado["Data lançamento"].dt.month)["Valor"].sum().reset_index()
+fig_mensal = px.line(df_mensal, x="Data lançamento", y="Valor", markers=True, title="Tendência de Gastos Mensais")
+st.plotly_chart(fig_mensal, use_container_width=True)
+
+# ---- Comparação por Categoria ----
+st.subheader("📊 Gastos por Categoria")
+df_categoria = df_filtrado.groupby("Categoria")["Valor"].sum().reset_index()
+fig_categoria = px.bar(df_categoria, x="Categoria", y="Valor", color="Categoria", text_auto=True, title="Distribuição de Gastos por Categoria")
+st.plotly_chart(fig_categoria, use_container_width=True)
+
+# ---- Exportação de Dados ----
+st.sidebar.subheader("📥 Exportar Dados")
+csv = df_filtrado.to_csv(index=False).encode("utf-8")
+st.sidebar.download_button("Baixar CSV", data=csv, file_name="dados_financeiros.csv", mime="text/csv")
+
+# ---- Painel de Alertas Financeiros ----
+st.subheader("⚠️ Alertas Financeiros")
+media_gastos = df_pagar["Valor"].mean()
+if total_gastos > media_gastos * 1.2:
+    st.warning(f"🚨 Atenção! Seus gastos neste mês ({total_gastos:,.2f}) estão **20% acima da média histórica**!")
+elif total_gastos < media_gastos * 0.8:
+    st.success(f"🎉 Excelente! Seus gastos estão **20% abaixo da média histórica**!")
+
+
+
 df_resumo_centro = df_filtrado.groupby("Centro de custo")["Valor"].sum().reset_index().sort_values(by="Valor", ascending=False)
 
 gerar_graficos(df_resumo_centro, "📊 Gastos por Centro de Custo")
