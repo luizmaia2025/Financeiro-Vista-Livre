@@ -3,19 +3,19 @@ import pandas as pd
 import plotly.express as px
 
 # ---- Configuração do Tema ----
-st.set_page_config(page_title="📊 Dashboard Financeiro - Vista Livre", layout="wide")
+st.set_page_config(page_title="📊 Controle Financeiro - Vista Livre", layout="wide")
 
 # ---- Estilização Global ----
 st.markdown(
     """
     <style>
-        /* Ajustes gerais para espaçamento e alinhamento */
+        /* Ajuste de layout geral */
         .css-1d391kg {padding: 10px 20px;}
         .css-1cpxqw2 {margin-bottom: 10px;}
 
-        /* Ajustes dos botões */
+        /* Ajuste dos botões */
         .stButton>button {
-            background-color: #4CAF50;
+            background-color: #007BFF;
             color: white;
             padding: 8px 20px;
             border-radius: 8px;
@@ -24,7 +24,7 @@ st.markdown(
             font-size: 14px;
         }
         .stButton>button:hover {
-            background-color: #45a049;
+            background-color: #0056b3;
         }
 
         /* Melhorando as tabelas */
@@ -59,7 +59,7 @@ def load_data():
 
 df_pagar = load_data()
 
-st.title("📊 Dashboard Financeiro - Vista Livre 2025")
+st.title("📊 Controle Financeiro - Vista Livre")
 
 # ---- Sidebar - Filtros Interativos ----
 st.sidebar.header("🔍 Filtros")
